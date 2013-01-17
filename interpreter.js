@@ -74,7 +74,7 @@ var prefixes = {
   }
 };
 
-var TestRun = function(script) {
+var TestRun = function(script, name) {
   this.vars = {};
   this.script = script;
   this.stepIndex = -1;
@@ -82,11 +82,17 @@ var TestRun = function(script) {
   this.wd = null;
   this.defaultLogging = true;
   this.silencePrints = false;
+  this.name = name || 'Untitled';
+  this.browserOptions = { 'browserName': 'firefox' };
 };
 
 TestRun.prototype.start = function(callback) {
+  if (this.defaultLogging) {
+    console.log('Starting up session for "' + this.name + '".');
+  }
   this.wd = webdriver.remote();
-  this.wd.init({'browserName': 'firefox'}, function(err) { callback({ 'success': !err, 'error': err }); });
+  this.browserOptions.name = this.name;
+  this.wd.init(this.browserOptions, function(err) { callback({ 'success': !err, 'error': err }); });
 };
 
 TestRun.prototype.currentStep = function() {
@@ -101,6 +107,9 @@ TestRun.prototype.next = function(callback) {
   callback = callback || function() {};
   this.stepIndex++;
   var stepType = this.currentStep().type;
+  if (this.defaultLogging) {
+    console.log(JSON.stringify(this.currentStep()));
+  }
   var prefix = null;
   for (var p in prefixes) {
     if (S(stepType).startsWith(p)) {
@@ -117,11 +126,26 @@ TestRun.prototype.next = function(callback) {
       return;
     }
   }
+  var wrappedCallback = callback;
+  if (this.defaultLogging) {
+    wrappedCallback = function(info) {
+      if (info.success) {
+        console.log("Success!");
+      } else {
+        if (info.error) {
+          console.log("Error: " + info.error);
+        } else {
+          console.log("Failure!");
+        }
+      }
+      callback(info);
+    };
+  }
   try {
     if (prefix) {
-      prefix(this.stepExecutors[stepType], this, callback);
+      prefix(this.stepExecutors[stepType], this, wrappedCallback);
     } else {
-      this.stepExecutors[stepType].run(this, callback);
+      this.stepExecutors[stepType].run(this, wrappedCallback);
     }
   } catch (e) {
     callback({ 'success': false, 'error': e });
@@ -130,11 +154,14 @@ TestRun.prototype.next = function(callback) {
 
 TestRun.prototype.end = function(callback) {
   if (this.wd) {
+    if (this.defaultLogging) {
+      console.log("Ending session.");
+    }
     var wd = this.wd;
     this.wd = null;
     wd.quit(callback);
   } else {
-    callback("No driver running.");
+    callback('No driver running.');
   }
 };
 
@@ -195,26 +222,57 @@ TestRun.prototype.p = function(name) {
 ///
 
 var fs = require('fs');
-var argv = require('optimist').usage('Usage: $0 [script path]...').argv;
+var opt = require('optimist')
+  .default('quiet', false).describe('quiet', 'no per-step output')
+  .default('noPrint', false).describe('noPrint', 'no print step output')
+  .default('silent', false).describe('silent', 'no non-error output')
+  .demand(1) // At least 1 script to execute.
+  .usage('Usage: $0 [--option value...] [script path...]\n\nPrefix brower options like browserName with "browser-", e.g. "--browser-browserName=firefox".');
+
+var argv = opt.argv;
+
+var browserOptions = { 'browserName': 'firefox' };
+for (var k in argv) {
+  if (S(k).startsWith('browser-')) {
+    browserOptions[k.substring('browser-'.length)] = argv[k];
+  }
+}
 
 var scripts = argv._.map(function(path) {
   try {
-    return JSON.parse(fs.readFileSync(path, "UTF-8"));
+    return { 'script': JSON.parse(fs.readFileSync(path, "UTF-8")), 'name': path.replace(/.*\/|\\/, "").replace(/\.json$/, "") };
   } catch (e) {
-    console.warn("Unable to parse script " + path + ": " + e);
+    console.error('Unable to parse script ' + path + ': ' + e);
     return null;
   }
 }).filter(function(script) { return script != null; });
 
 var index = -1;
+var successes = 0;
 function play() {
   index++;
   if (index < scripts.length) {
-    new TestRun(scripts[index]).run(function(info) {
-      console.log(info.error); // qqDPS Not really what we want.
+    var tr = new TestRun(scripts[index].script, scripts[index].name);
+    tr.defaultLogging = !argv.silent && !argv.quiet;
+    tr.silencePrints = argv.noPrint || argv.silent;
+    tr.browserOptions = browserOptions;
+    tr.run(function(info) {
+      if (!argv.silent) {
+        if (info.success) {
+          successes++;
+          console.log('"' + scripts[index].name + '" ran successfully.');
+        } else {
+          if (info.error) {
+            console.log(scripts[index].name + ' failed: ' + info.error);
+          } else {
+            console.log(scripts[index].name + ' failed.');
+          }
+        }
+      }
       play();
     });
   } else {
+    if (!argv.silent) { console.log(successes + '/' + scripts.length + ' tests ran successfully. Exiting.'); }
     process.exit();
   }
 }
