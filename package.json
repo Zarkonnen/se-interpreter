@@ -1,0 +1,21 @@
+{
+  "author": "David Stark <david.stark@zarkonnen.com>",
+  "name": "se-interpreter",
+  "description": "Command-line interpreter for Selenium Builder test scripts.",
+  "version": "0.1.0",
+  "homepage": "http://www.sebuilder.com/",
+  "repository": {
+    "type": "git",
+    "url": "TBD"
+  },
+  "main": "interpreter",
+  "engines": {
+    "node": "~v0.4.11"
+  },
+  "dependencies": {
+    "string": "1.2.0",
+    "wd": ">= 0.0.27",
+    "optimist": "0.3.5"
+  },
+  "devDependencies": {}
+}
