@@ -80,10 +80,13 @@ var TestRun = function(script, name) {
   this.stepIndex = -1;
   this.stepExecutors = {};
   this.wd = null;
-  this.defaultLogging = true;
+  this.defaultLogging = false;
   this.silencePrints = false;
   this.name = name || 'Untitled';
   this.browserOptions = { 'browserName': 'firefox' };
+  this.listener = null;
+  this.success = true;
+  this.lastError = null;
 };
 
 TestRun.prototype.start = function(callback) {
@@ -92,7 +95,14 @@ TestRun.prototype.start = function(callback) {
   }
   this.wd = webdriver.remote();
   this.browserOptions.name = this.name;
-  this.wd.init(this.browserOptions, function(err) { callback({ 'success': !err, 'error': err }); });
+  var testRun = this;
+  this.wd.init(this.browserOptions, function(err) {
+    var info = { 'success': !err, 'error': err };
+    if (testRun.listener && testRun.listener.startTestRun) {
+      testRun.listener.startTestRun(this, info);
+    }
+    callback(info);
+  });
 };
 
 TestRun.prototype.currentStep = function() {
@@ -110,6 +120,9 @@ TestRun.prototype.next = function(callback) {
   if (this.defaultLogging) {
     console.log(JSON.stringify(this.currentStep()));
   }
+  if (this.listener && this.listener.startStep) {
+    this.listener.startStep(this, this.currentStep());
+  }
   var prefix = null;
   for (var p in prefixes) {
     if (S(stepType).startsWith(p)) {
@@ -122,13 +135,20 @@ TestRun.prototype.next = function(callback) {
     try {
       this.stepExecutors[stepType] = require('./step_types/' + stepType + '.js');
     } catch (e) {
-      callback({ 'success': false, 'error': 'Unable to load step type: ' + e });
+      var info = { 'success': false, 'error': 'Unable to load step type: ' + e };
+      if (this.listener && this.listener.endStep) {
+        this.listener.endStep(this, this.currentStep(), info);
+      }
+      callback(info);
       return;
     }
   }
+  var testRun = this;
   var wrappedCallback = callback;
   if (this.defaultLogging) {
     wrappedCallback = function(info) {
+      testRun.success = testRun.success && info.success;
+      testRun.lastError = info.error || testRun.lastError;
       if (info.success) {
         console.log("Success!");
       } else {
@@ -137,6 +157,18 @@ TestRun.prototype.next = function(callback) {
         } else {
           console.log("Failure!");
         }
+      }
+      if (testRun.listener && testRun.listener.endStep) {
+        testRun.listener.endStep(testRun, testRun.currentStep(), info);
+      }
+      callback(info);
+    };
+  } else {
+    wrappedCallback = function(info) {
+      testRun.success = testRun.success && info.success;
+      testRun.lastError = info.error || testRun.lastError;
+      if (testRun.listener && testRun.listener.endStep) {
+        testRun.listener.endStep(testRun, testRun.currentStep(), info);
       }
       callback(info);
     };
@@ -148,7 +180,7 @@ TestRun.prototype.next = function(callback) {
       this.stepExecutors[stepType].run(this, wrappedCallback);
     }
   } catch (e) {
-    callback({ 'success': false, 'error': e });
+    wrappedCallback({ 'success': false, 'error': e });
   }
 };
 
@@ -159,9 +191,23 @@ TestRun.prototype.end = function(callback) {
     }
     var wd = this.wd;
     this.wd = null;
-    wd.quit(callback);
+    var testRun = this;
+    wd.quit(function(error) {
+      var info = { 'success': testRun.success && !error, 'error': testRun.lastError || error };
+      if (testRun.listener && testRun.listener.endTestRun) {
+        testRun.listener.endTestRun(testRun, info);
+      }
+      callback(info);
+    });
   } else {
-    callback('No driver running.');
+    if (this.defaultLogging) {
+      console.log("Session already ended: no driver running.");
+    }
+    var info = { 'success': false, 'error': 'No driver running.' };
+    if (this.listener && this.listener.endTestRun) {
+      this.listener.endTestRun(testRun, info);
+    }
+    callback(info);
   }
 };
 
@@ -175,22 +221,21 @@ TestRun.prototype.run = function(runCallback, stepCallback) {
        runCallback({ 'success': false, 'error': 'Unable to start playback session: ' +  info.error });
        return;
       }
-      function runStep(success) {
+      function runStep() {
         testRun.next(function(info) {
           stepCallback(info);
           if (info.error) {
-            testRun.end(function(err) { runCallback({ 'success': false, 'error': err ? info.error + '\nAdditionally, the following error occurred while shutting down: ' + err : info.error }); });
+            testRun.end(function(endInfo) { runCallback({ 'success': false, 'error': endInfo.error ? info.error + '\nAdditionally, the following error occurred while shutting down: ' + endInfo.error : info.error }); });
             return;
           }
-          success = success && info.success;
           if (testRun.hasNext()) {
-            runStep(success);
+            runStep();
           } else {
-            testRun.end(function(err) { runCallback({ 'success': success && !err, 'error': err }); });
+            testRun.end(function(endInfo) { runCallback({ 'success': testRun.success && endInfo.success, 'error': testRun.lastError || endInfo.error }); });
           }
         });
       }
-      runStep(true);
+      runStep();
     });
   } catch (e) {
     runCallback({ 'success': false, 'error': 'Unable to start session: ' + e });
@@ -201,6 +246,8 @@ TestRun.prototype.reset = function() {
   this.end();
   this.vars = {};
   this.stepIndex = -1;
+  this.success = true;
+  this.lastError = null;
 };
 
 TestRun.prototype.setVar = function(k, v) {
@@ -226,6 +273,7 @@ var opt = require('optimist')
   .default('quiet', false).describe('quiet', 'no per-step output')
   .default('noPrint', false).describe('noPrint', 'no print step output')
   .default('silent', false).describe('silent', 'no non-error output')
+  .describe('listener', 'path to listener module')
   .demand(1) // At least 1 script to execute.
   .usage('Usage: $0 [--option value...] [script path...]\n\nPrefix brower options like browserName with "browser-", e.g. "--browser-browserName=firefox".');
 
@@ -247,6 +295,16 @@ var scripts = argv._.map(function(path) {
   }
 }).filter(function(script) { return script != null; });
 
+var listener = null;
+if (argv.listener) {
+  try {
+    listener = require(argv.listener);
+  } catch (e) {
+    console.error('Unable to load listener module ' + argv.listener + ': ' + e);
+    process.exit();
+  }
+}
+
 var index = -1;
 var successes = 0;
 function play() {
@@ -256,6 +314,9 @@ function play() {
     tr.defaultLogging = !argv.silent && !argv.quiet;
     tr.silencePrints = argv.noPrint || argv.silent;
     tr.browserOptions = browserOptions;
+    if (listener) {
+      tr.listener = listener.getInterpreterListener(tr);
+    }
     tr.run(function(info) {
       if (!argv.silent) {
         if (info.success) {
