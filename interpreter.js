@@ -90,9 +90,7 @@ var TestRun = function(script, name) {
 };
 
 TestRun.prototype.start = function(callback) {
-  if (this.defaultLogging) {
-    console.log('Starting up session for "' + this.name + '".');
-  }
+  callback = callback || function() {};
   this.wd = webdriver.remote();
   this.browserOptions.name = this.name;
   var testRun = this;
@@ -100,6 +98,9 @@ TestRun.prototype.start = function(callback) {
     var info = { 'success': !err, 'error': err };
     if (testRun.listener && testRun.listener.startTestRun) {
       testRun.listener.startTestRun(this, info);
+    }
+    if (this.defaultLogging) {
+      console.log('Started up session for "' + this.name + '".');
     }
     callback(info);
   });
@@ -185,14 +186,15 @@ TestRun.prototype.next = function(callback) {
 };
 
 TestRun.prototype.end = function(callback) {
+  callback = callback || function() {};
   if (this.wd) {
-    if (this.defaultLogging) {
-      console.log("Ending session.");
-    }
     var wd = this.wd;
     this.wd = null;
     var testRun = this;
     wd.quit(function(error) {
+      if (testRun.defaultLogging) {
+        console.log("Ended session.");
+      }
       var info = { 'success': testRun.success && !error, 'error': testRun.lastError || error };
       if (testRun.listener && testRun.listener.endTestRun) {
         testRun.listener.endTestRun(testRun, info);
@@ -266,7 +268,12 @@ TestRun.prototype.p = function(name) {
   return v;
 };
 
-///
+exports.TestRun = TestRun;
+
+// Command-line usage:
+if (require.main !== module) {
+  return;
+}
 
 var fs = require('fs');
 var opt = require('optimist')
