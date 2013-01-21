@@ -1,6 +1,6 @@
-exports.run = function(testRun, callback) {
-  if (!testRun.silencePrints) {
-    console.log(testRun.p('text'));
+exports.run = function(tr, cb) {
+  if (!tr.silencePrints) {
+    console.log(tr.p('text'));
   }
-  callback({ 'success': true });
+  cb({'success': true});
 };

@@ -1,6 +1,6 @@
 exports.cmp = "title";
-exports.run = function(testRun, callback) {
-  testRun.wd.title(function(err, title) {
-    callback({'value': title, 'error': err});
+exports.run = function(tr, cb) {
+  tr.do('title', [], cb, function(err, title) {
+    cb({'value': title});
   });
 };

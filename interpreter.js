@@ -19,6 +19,8 @@
 var webdriver = require('wd');
 var S = require('string');
 
+process.setMaxListeners(0);
+
 var prefixes = {
   'assert': function(getter, testRun, callback) {
     getter.run(testRun, function(info) {
@@ -126,7 +128,7 @@ TestRun.prototype.next = function(callback) {
   }
   var prefix = null;
   for (var p in prefixes) {
-    if (S(stepType).startsWith(p)) {
+    if (S(stepType).startsWith(p) && stepType != p) {
       prefix = prefixes[p];
       stepType = stepType.substring(p.length);
       break;
@@ -266,6 +268,61 @@ TestRun.prototype.p = function(name) {
     v = v.replace(new RegExp("\\$\\{" + k + "\\}", "g"), this.vars[k]);
   }
   return v;
+};
+
+TestRun.prototype.do = function(fName, args, callback, successCallback, failureCallback) {
+  if (!this.wd[fName]) {
+    if (failureCallback) {
+      failureCallback('Webdriver has no function "' + fName + '".');
+    } else {
+      cb({'success': false, 'error': 'Webdriver has no function "' + fName + '".'});
+    }
+    return; 
+  }
+  this.wd[fName].apply(this.wd, args.concat([function(err) {
+    if (err) {
+      if (failureCallback) {
+        failureCallback.apply(failureCallback, arguments);
+      } else {
+        callback({'success': false, 'error': err});
+      }
+    } else {
+      if (successCallback) {
+        successCallback.apply(successCallback, arguments);
+      } else {
+        callback({'success': true});
+      }
+    }
+  }]));
+};
+
+TestRun.prototype.locate = function(locatorName, callback, successCallback, failureCallback) {
+  var locator = this.currentStep()[locatorName];
+  if (!locator) {
+    callback('Missing parameter "' + locatorName + '" in step #' + (this.stepIndex + 1) + '.');
+    return;
+  }
+  this.wd[{
+    'id': 'elementById',
+    'name': 'elementByName',
+    'link text': 'elementByLinkText',
+    'css selector': 'elementByCss',
+    'xpath': 'elementByXPath'
+  }[locator.type]](locator.value, function(err) {
+    if (err) {
+      if (failureCallback) {
+        failureCallback.apply(failureCallback, arguments);
+      } else {
+        callback({'success': false, 'error': err});
+      }
+    } else {
+      if (successCallback) {
+        successCallback.apply(successCallback, arguments);
+      } else {
+        callback({'success': true});
+      }
+    }
+  });
 };
 
 exports.TestRun = TestRun;
