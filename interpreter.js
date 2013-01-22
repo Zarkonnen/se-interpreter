@@ -76,11 +76,24 @@ var prefixes = {
   }
 };
 
+var DefaultExecutorFactory = function() {
+  this.executors = {};
+};
+DefaultExecutorFactory.prototype.get = function(stepType) {
+  if (!this.executors[stepType]) {
+    try {
+      this.executors[stepType] = require('./step_types/' + stepType + '.js');
+    } catch (e) {
+      return null;
+    }
+  }
+  return this.executors[stepType];
+};
+
 var TestRun = function(script, name) {
   this.vars = {};
   this.script = script;
   this.stepIndex = -1;
-  this.stepExecutors = {};
   this.wd = null;
   this.silencePrints = false;
   this.name = name || 'Untitled';
@@ -88,6 +101,7 @@ var TestRun = function(script, name) {
   this.listener = null;
   this.success = true;
   this.lastError = null;
+  this.executorFactories = [new DefaultExecutorFactory()];
 };
 
 TestRun.prototype.start = function(callback) {
@@ -115,10 +129,10 @@ TestRun.prototype.hasNext = function() {
 TestRun.prototype.next = function(callback) {
   callback = callback || function() {};
   this.stepIndex++;
-  var stepType = this.currentStep().type;
   if (this.listener && this.listener.startStep) {
     this.listener.startStep(this, this.currentStep());
   }
+  var stepType = this.currentStep().type;
   var prefix = null;
   for (var p in prefixes) {
     if (S(stepType).startsWith(p) && stepType != p) {
@@ -127,17 +141,18 @@ TestRun.prototype.next = function(callback) {
       break;
     }
   }
-  if (!(stepType in this.stepExecutors)) {
-    try {
-      this.stepExecutors[stepType] = require('./step_types/' + stepType + '.js');
-    } catch (e) {
-      var info = { 'success': false, 'error': 'Unable to load step type: ' + e };
-      if (this.listener && this.listener.endStep) {
-        this.listener.endStep(this, this.currentStep(), info);
-      }
-      callback(info);
-      return;
+  var executor = null;
+  var i = 0;
+  while (!executor && i < this.executorFactories.length) {
+    executor = this.executorFactories[i++].get(stepType);
+  }
+  if (!executor) {
+    var info = { 'success': false, 'error': 'Unable to load step type ' + stepType + '.' };
+    if (this.listener && this.listener.endStep) {
+      this.listener.endStep(this, this.currentStep(), info);
     }
+    callback(info);
+    return;
   }
   var testRun = this;
   var wrappedCallback = callback;
@@ -151,9 +166,9 @@ TestRun.prototype.next = function(callback) {
   };
   try {
     if (prefix) {
-      prefix(this.stepExecutors[stepType], this, wrappedCallback);
+      prefix(executor, this, wrappedCallback);
     } else {
-      this.stepExecutors[stepType].run(this, wrappedCallback);
+      executor.run(this, wrappedCallback);
     }
   } catch (e) {
     wrappedCallback({ 'success': false, 'error': e });
@@ -189,8 +204,8 @@ TestRun.prototype.run = function(runCallback, stepCallback) {
   try {
     this.start(function(info) {
       if (!info.success) {
-       runCallback({ 'success': false, 'error': 'Unable to start playback session: ' +  info.error });
-       return;
+        runCallback({ 'success': false, 'error': 'Unable to start playback session: ' + info.error });
+        return;
       }
       function runStep() {
         testRun.next(function(info) {
@@ -302,7 +317,11 @@ if (require.main !== module) {
 function getDefaultListener(testRun) {
   return {
     'startTestRun': function(testRun, info) {
-      console.log("Starting test " + testRun.name);
+      if (info.success) {
+        console.log("\x1b[32mStarting test \x1b[30m" + testRun.name);
+      } else {
+        console.log("\x1b[31mUnable to start test \x1b[30m" + testRun.name + ": " + info.error);
+      }
     },
     'endTestRun': function(testRun, info) {
       if (info.success) {
@@ -325,7 +344,7 @@ function getDefaultListener(testRun) {
         if (info.error) {
           console.log("\x1b[31mError: \x1b[30m" + info.error);
         } else {
-          console.log("\x1b[33mFailed\x1b[36m");
+          console.log("\x1b[33mFailed\x1b[30m");
         }
       }
     }
@@ -338,6 +357,7 @@ var opt = require('optimist')
   .default('noPrint', false).describe('noPrint', 'no print step output')
   .default('silent', false).describe('silent', 'no non-error output')
   .describe('listener', 'path to listener module')
+  .describe('executorFactory', 'path to factory for extra type executors')
   .demand(1) // At least 1 script to execute.
   .usage('Usage: $0 [--option value...] [script path...]\n\nPrefix brower options like browserName with "browser-", e.g. "--browser-browserName=firefox".');
 
@@ -368,6 +388,15 @@ if (argv.listener) {
     process.exit();
   }
 }
+var exeFactory = null;
+if (argv.executorFactory) {
+  try {
+    exeFactory = require(argv.executorFactory);
+  } catch (e) {
+    console.error('Unable to load executor factory module ' + argv.executorFactory + ': ' + e);
+    process.exit();
+  }
+}
 
 var index = -1;
 var successes = 0;
@@ -383,6 +412,9 @@ function play() {
       if (!argv.silent && !argv.quiet) {
         tr.listener = getDefaultListener(tr);
       }
+    }
+    if (exeFactory) {
+      tr.executorFactories.splice(0, 0, exeFactory);
     }
     tr.run(function(info) {
       if (!argv.silent) {
