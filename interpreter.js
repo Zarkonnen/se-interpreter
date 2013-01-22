@@ -82,7 +82,6 @@ var TestRun = function(script, name) {
   this.stepIndex = -1;
   this.stepExecutors = {};
   this.wd = null;
-  this.defaultLogging = false;
   this.silencePrints = false;
   this.name = name || 'Untitled';
   this.browserOptions = { 'browserName': 'firefox' };
@@ -99,10 +98,7 @@ TestRun.prototype.start = function(callback) {
   this.wd.init(this.browserOptions, function(err) {
     var info = { 'success': !err, 'error': err };
     if (testRun.listener && testRun.listener.startTestRun) {
-      testRun.listener.startTestRun(this, info);
-    }
-    if (this.defaultLogging) {
-      console.log('Started up session for "' + this.name + '".');
+      testRun.listener.startTestRun(testRun, info);
     }
     callback(info);
   });
@@ -120,9 +116,6 @@ TestRun.prototype.next = function(callback) {
   callback = callback || function() {};
   this.stepIndex++;
   var stepType = this.currentStep().type;
-  if (this.defaultLogging) {
-    console.log(JSON.stringify(this.currentStep()));
-  }
   if (this.listener && this.listener.startStep) {
     this.listener.startStep(this, this.currentStep());
   }
@@ -148,34 +141,14 @@ TestRun.prototype.next = function(callback) {
   }
   var testRun = this;
   var wrappedCallback = callback;
-  if (this.defaultLogging) {
-    wrappedCallback = function(info) {
-      testRun.success = testRun.success && info.success;
-      testRun.lastError = info.error || testRun.lastError;
-      if (info.success) {
-        console.log("Success!");
-      } else {
-        if (info.error) {
-          console.log("Error: " + info.error);
-        } else {
-          console.log("Failure!");
-        }
-      }
-      if (testRun.listener && testRun.listener.endStep) {
-        testRun.listener.endStep(testRun, testRun.currentStep(), info);
-      }
-      callback(info);
-    };
-  } else {
-    wrappedCallback = function(info) {
-      testRun.success = testRun.success && info.success;
-      testRun.lastError = info.error || testRun.lastError;
-      if (testRun.listener && testRun.listener.endStep) {
-        testRun.listener.endStep(testRun, testRun.currentStep(), info);
-      }
-      callback(info);
-    };
-  }
+  wrappedCallback = function(info) {
+    testRun.success = testRun.success && info.success;
+    testRun.lastError = info.error || testRun.lastError;
+    if (testRun.listener && testRun.listener.endStep) {
+      testRun.listener.endStep(testRun, testRun.currentStep(), info);
+    }
+    callback(info);
+  };
   try {
     if (prefix) {
       prefix(this.stepExecutors[stepType], this, wrappedCallback);
@@ -194,9 +167,6 @@ TestRun.prototype.end = function(callback) {
     this.wd = null;
     var testRun = this;
     wd.quit(function(error) {
-      if (testRun.defaultLogging) {
-        console.log("Ended session.");
-      }
       var info = { 'success': testRun.success && !error, 'error': testRun.lastError || error };
       if (testRun.listener && testRun.listener.endTestRun) {
         testRun.listener.endTestRun(testRun, info);
@@ -204,9 +174,6 @@ TestRun.prototype.end = function(callback) {
       callback(info);
     });
   } else {
-    if (this.defaultLogging) {
-      console.log("Session already ended: no driver running.");
-    }
     var info = { 'success': false, 'error': 'No driver running.' };
     if (this.listener && this.listener.endTestRun) {
       this.listener.endTestRun(testRun, info);
@@ -332,6 +299,39 @@ if (require.main !== module) {
   return;
 }
 
+function getDefaultListener(testRun) {
+  return {
+    'startTestRun': function(testRun, info) {
+      console.log("Starting test " + testRun.name);
+    },
+    'endTestRun': function(testRun, info) {
+      if (info.success) {
+        console.log("\x1b[32m\x1b[1mTest passed\x1b[30m\x1b[0m");
+      } else {
+        if (info.error) {
+          console.log("\x1b[31m\x1b[1mTest failed: \x1b[30m\x1b[0m" + info.error);
+        } else {
+          console.log("\x1b[31m\x1b[1mTest failed\x1b[30m\x1b[0m");
+        }
+      }
+    },
+    'startStep': function(testRun, step) {
+      console.log(JSON.stringify(step));
+    },
+    'endStep': function(testRun, step, info) {
+      if (info.success) {
+        console.log("\x1b[32mSuccess\x1b[30m");
+      } else {
+        if (info.error) {
+          console.log("\x1b[31mError: \x1b[30m" + info.error);
+        } else {
+          console.log("\x1b[33mFailed\x1b[36m");
+        }
+      }
+    }
+  };
+}
+
 var fs = require('fs');
 var opt = require('optimist')
   .default('quiet', false).describe('quiet', 'no per-step output')
@@ -375,29 +375,27 @@ function play() {
   index++;
   if (index < scripts.length) {
     var tr = new TestRun(scripts[index].script, scripts[index].name);
-    tr.defaultLogging = !argv.silent && !argv.quiet;
     tr.silencePrints = argv.noPrint || argv.silent;
     tr.browserOptions = browserOptions;
     if (listener) {
       tr.listener = listener.getInterpreterListener(tr);
+    } else {
+      if (!argv.silent && !argv.quiet) {
+        tr.listener = getDefaultListener(tr);
+      }
     }
     tr.run(function(info) {
       if (!argv.silent) {
         if (info.success) {
           successes++;
-          console.log('"' + scripts[index].name + '" ran successfully.');
-        } else {
-          if (info.error) {
-            console.log(scripts[index].name + ' failed: ' + info.error);
-          } else {
-            console.log(scripts[index].name + ' failed.');
-          }
         }
       }
       play();
     });
   } else {
-    if (!argv.silent) { console.log(successes + '/' + scripts.length + ' tests ran successfully. Exiting.'); }
+    if (!argv.silent) {
+      console.log("\x1b[" + (successes == scripts.length ? "32" : "31") + "m\x1b[1m" + successes + '/' + scripts.length + ' tests ran successfully. Exiting.\x1b[30m\x1b[0m');
+    }
     process.exit();
   }
 }
