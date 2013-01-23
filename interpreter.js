@@ -101,6 +101,7 @@ var TestRun = function(script, name) {
   this.silencePrints = false;
   this.name = name || 'Untitled';
   this.browserOptions = { 'browserName': 'firefox' };
+  this.driverOptions = {};
   this.listener = null;
   this.success = true;
   this.lastError = null;
@@ -109,7 +110,7 @@ var TestRun = function(script, name) {
 
 TestRun.prototype.start = function(callback) {
   callback = callback || function() {};
-  this.wd = webdriver.remote();
+  this.wd = webdriver.remote(this.driverOptions);
   this.browserOptions.name = this.name;
   var testRun = this;
   this.wd.init(this.browserOptions, function(err) {
@@ -391,7 +392,7 @@ var opt = require('optimist')
   .describe('listener', 'path to listener module')
   .describe('executorFactory', 'path to factory for extra type executors')
   .demand(1) // At least 1 script to execute.
-  .usage('Usage: $0 [--option value...] [script path...]\n\nPrefix brower options like browserName with "browser-", e.g. "--browser-browserName=firefox".');
+  .usage('Usage: $0 [--option value...] [script path...]\n\nPrefix brower options like browserName with "browser-", e.g. "--browser-browserName=firefox".\nPrefix driver options like host with "driver-", eg --driver-host=webdriver.foo.com.');
 
 var argv = opt.argv;
 
@@ -399,6 +400,12 @@ var browserOptions = { 'browserName': 'firefox' };
 for (var k in argv) {
   if (S(k).startsWith('browser-')) {
     browserOptions[k.substring('browser-'.length)] = argv[k];
+  }
+}
+var driverOptions = {};
+for (var k in argv) {
+  if (S(k).startsWith('driver-')) {
+    driverOptions[k.substring('driver-'.length)] = argv[k];
   }
 }
 
@@ -438,6 +445,7 @@ function play() {
     var tr = new TestRun(scripts[index].script, scripts[index].name);
     tr.silencePrints = argv.noPrint || argv.silent;
     tr.browserOptions = browserOptions;
+    tr.driverOptions = driverOptions;
     if (listener) {
       tr.listener = listener.getInterpreterListener(tr);
     } else {
