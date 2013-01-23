@@ -19,8 +19,8 @@
 var webdriver = require('wd');
 var S = require('string');
 
-process.setMaxListeners(0);
-
+// Common functionality for assert/verify/waitFor/store step types. Only the code for actually
+// getting the value has to be implemented individually.
 var prefixes = {
   'assert': function(getter, testRun, callback) {
     getter.run(testRun, function(info) {
@@ -76,6 +76,7 @@ var prefixes = {
   }
 };
 
+/** Creates step executors by loading them as modules from step_types. */
 var DefaultExecutorFactory = function() {
   this.executors = {};
 };
@@ -90,6 +91,7 @@ DefaultExecutorFactory.prototype.get = function(stepType) {
   return this.executors[stepType];
 };
 
+/** Encapsulates a single test run. */
 var TestRun = function(script, name) {
   this.vars = {};
   this.script = script;
@@ -211,7 +213,9 @@ TestRun.prototype.run = function(runCallback, stepCallback) {
         testRun.next(function(info) {
           stepCallback(info);
           if (info.error) {
-            testRun.end(function(endInfo) { runCallback({ 'success': false, 'error': endInfo.error ? info.error + '\nAdditionally, the following error occurred while shutting down: ' + endInfo.error : info.error }); });
+            testRun.end(function(endInfo) {
+              runCallback({'success': false, 'error': (endInfo.error && info.error != endInfo.error) ? info.error + '\nAdditionally, the following error occurred while shutting down: ' + endInfo.error : info.error });
+            });
             return;
           }
           if (testRun.hasNext()) {
@@ -224,7 +228,9 @@ TestRun.prototype.run = function(runCallback, stepCallback) {
       runStep();
     });
   } catch (e) {
-    runCallback({ 'success': false, 'error': 'Unable to start session: ' + e });
+    testRun.end(function(endInfo) {
+      runCallback({'success': false, 'error': endInfo.error ? 'Unable to start session: ' + e + '\nAdditionally, the following error occurred while shutting down: ' + endInfo.error : 'Unable to start session: ' + e });
+    });
   };
 };
 
@@ -252,6 +258,14 @@ TestRun.prototype.p = function(name) {
   return v;
 };
 
+/**
+ * Calls a function on the webdriver, and defaults to calling the callback with success/failure.
+ * @param fName The function to call.
+ * @param args List of arguments.
+ * @param callback stepCallback that's invoked by default.
+ * @param successCallback If specified, called on success instead of calling callback.
+ * @param failureCallback If specified, called on success instead of calling callback.
+ */
 TestRun.prototype.do = function(fName, args, callback, successCallback, failureCallback) {
   if (!this.wd[fName]) {
     if (failureCallback) {
@@ -278,6 +292,13 @@ TestRun.prototype.do = function(fName, args, callback, successCallback, failureC
   }]));
 };
 
+/**
+ * Locates an element specified by a locator in the current step.
+ * @param locatorName Name of the locator step parameter, usually "locator".
+ * @param callback stepCallback that's invoked by default.
+ * @param successCallback If specified, called on success instead of calling callback.
+ * @param failureCallback If specified, called on success instead of calling callback.
+ */
 TestRun.prototype.locate = function(locatorName, callback, successCallback, failureCallback) {
   var locator = this.currentStep()[locatorName];
   if (!locator) {
@@ -309,7 +330,7 @@ TestRun.prototype.locate = function(locatorName, callback, successCallback, fail
 
 exports.TestRun = TestRun;
 
-// Command-line usage:
+// Command-line usage.
 if (require.main !== module) {
   return;
 }
@@ -385,7 +406,7 @@ if (argv.listener) {
     listener = require(argv.listener);
   } catch (e) {
     console.error('Unable to load listener module ' + argv.listener + ': ' + e);
-    process.exit();
+    process.exit(78);
   }
 }
 var exeFactory = null;
@@ -394,7 +415,7 @@ if (argv.executorFactory) {
     exeFactory = require(argv.executorFactory);
   } catch (e) {
     console.error('Unable to load executor factory module ' + argv.executorFactory + ': ' + e);
-    process.exit();
+    process.exit(78);
   }
 }
 
@@ -428,7 +449,7 @@ function play() {
     if (!argv.silent) {
       console.log("\x1b[" + (successes == scripts.length ? "32" : "31") + "m\x1b[1m" + successes + '/' + scripts.length + ' tests ran successfully. Exiting.\x1b[30m\x1b[0m');
     }
-    process.exit();
+    process.exit(successes == scripts.length ? 0 : 1);
   }
 }
 play();

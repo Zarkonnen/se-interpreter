@@ -1,3 +1,4 @@
+/** An example interpreter listener factory with all listener functions implemented. */
 exports.getInterpreterListener = function(testRun) {
   return {
     'startTestRun': function(testRun, info) {

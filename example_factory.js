@@ -1,3 +1,4 @@
+/** An example step executor factory that adds a single step type: "meow". */
 exports.get = function(stepType) {
   if (stepType == "meow") {
     return {
