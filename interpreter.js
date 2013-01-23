@@ -18,6 +18,7 @@
 
 var webdriver = require('wd');
 var S = require('string');
+var util = require('util');
 
 // Common functionality for assert/verify/waitFor/store step types. Only the code for actually
 // getting the value has to be implemented individually.
@@ -29,7 +30,7 @@ var prefixes = {
       
       if (testRun.currentStep().negated) {
         if (match) {
-          callback({ 'success': false, 'error': getter.cmp ? getter.cmp + ' matches' : getter.name + ' is true' });
+          callback({ 'success': false, 'error': new Error(getter.cmp ? getter.cmp + ' matches' : getter.name + ' is true') });
         } else {
           callback({ 'success': true });
         }
@@ -37,7 +38,7 @@ var prefixes = {
         if (match) {
           callback({ 'success': true });
         } else {
-          callback({ 'success': false, 'error': getter.cmp ? getter.cmp + ' does not match' : getter.name + ' is false' });
+          callback({ 'success': false, 'error': new Error(getter.cmp ? getter.cmp + ' does not match' : getter.name + ' is false') });
         }
       }
     });
@@ -66,7 +67,7 @@ var prefixes = {
           if (tick++ < ticks) {
             setTimeout(test, 500);
           } else {
-            callback({ 'success': false, 'error': info.error || 'Wait timed out.' });
+            callback({ 'success': false, 'error': info.error || new Error('Wait timed out.') });
           }
         }
       }); 
@@ -149,7 +150,7 @@ TestRun.prototype.next = function(callback) {
     executor = this.executorFactories[i++].get(stepType);
   }
   if (!executor) {
-    var info = { 'success': false, 'error': 'Unable to load step type ' + stepType + '.' };
+    var info = { 'success': false, 'error': new Error('Unable to load step type ' + stepType + '.') };
     if (this.listener && this.listener.endStep) {
       this.listener.endStep(this, this.currentStep(), info);
     }
@@ -191,7 +192,7 @@ TestRun.prototype.end = function(callback) {
       callback(info);
     });
   } else {
-    var info = { 'success': false, 'error': 'No driver running.' };
+    var info = { 'success': false, 'error': new Error('No driver running.') };
     if (this.listener && this.listener.endTestRun) {
       this.listener.endTestRun(testRun, info);
     }
@@ -206,7 +207,9 @@ TestRun.prototype.run = function(runCallback, stepCallback) {
   try {
     this.start(function(info) {
       if (!info.success) {
-        runCallback({ 'success': false, 'error': 'Unable to start playback session: ' + info.error });
+        var err = new Error('Unable to start playback session.');
+        err.reason = info.error;
+        runCallback({ 'success': false, 'error': err });
         return;
       }
       function runStep() {
@@ -214,7 +217,10 @@ TestRun.prototype.run = function(runCallback, stepCallback) {
           stepCallback(info);
           if (info.error) {
             testRun.end(function(endInfo) {
-              runCallback({'success': false, 'error': (endInfo.error && info.error != endInfo.error) ? info.error + '\nAdditionally, the following error occurred while shutting down: ' + endInfo.error : info.error });
+              if (endInfo.error) {
+                info.additionalError = endInfo.error;
+              }
+              runCallback({'success': false, 'error': info.error});
             });
             return;
           }
@@ -229,7 +235,12 @@ TestRun.prototype.run = function(runCallback, stepCallback) {
     });
   } catch (e) {
     testRun.end(function(endInfo) {
-      runCallback({'success': false, 'error': endInfo.error ? 'Unable to start session: ' + e + '\nAdditionally, the following error occurred while shutting down: ' + endInfo.error : 'Unable to start session: ' + e });
+      var err = new Error('Unable to start playback session.');
+      err.reason = e;
+      if (endInfo.error) {
+        info.additionalError = endInfo.error;
+      }
+      runCallback({'success': false, 'error': err });
     });
   };
 };
@@ -249,7 +260,7 @@ TestRun.prototype.setVar = function(k, v) {
 TestRun.prototype.p = function(name) {
   var s = this.currentStep();
   if (!(name in s)) {
-    throw 'Missing parameter "' + name + '" in step #' + (this.stepIndex + 1) + '.'; 
+    throw new Error('Missing parameter "' + name + '" in step #' + (this.stepIndex + 1) + '.'); 
   }
   var v = s[name];
   for (var k in this.vars) {
@@ -269,9 +280,9 @@ TestRun.prototype.p = function(name) {
 TestRun.prototype.do = function(fName, args, callback, successCallback, failureCallback) {
   if (!this.wd[fName]) {
     if (failureCallback) {
-      failureCallback('Webdriver has no function "' + fName + '".');
+      failureCallback(new Error('Webdriver has no function "' + fName + '".'));
     } else {
-      cb({'success': false, 'error': 'Webdriver has no function "' + fName + '".'});
+      cb({'success': false, 'error': new Error('Webdriver has no function "' + fName + '".') });
     }
     return; 
   }
