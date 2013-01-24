@@ -1,0 +1,28 @@
+{
+  "type": "interpreter-config",
+  "configurations": [
+    {
+      "settings": [
+        {
+          "driverOptions": {
+            "host": "ondemand.saucelabs.com",
+            "port": 80
+          },
+          "browserOptions": {
+            "browserName": "firefox",
+            "username": "zarkonnen",
+            "accessKey": "[CENSORED]"
+          }
+        },
+        {
+          "browserOptions": {
+            "browserName": "firefox"
+          }
+        }
+      ],
+      "scripts": [
+        "test/dialogs_frames_windows/*"
+      ]
+    }
+  ]
+}

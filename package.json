@@ -6,7 +6,7 @@
   "homepage": "http://www.sebuilder.com/",
   "repository": {
     "type": "git",
-    "url": "TBD"
+    "url": "https://github.com/Zarkonnen/se-interpreter.git"
   },
   "main": "interpreter",
   "engines": {
@@ -15,7 +15,8 @@
   "dependencies": {
     "string": "1.2.0",
     "wd": ">= 0.0.28",
-    "optimist": "0.3.5"
+    "optimist": "0.3.5",
+    "glob": "3.1.16"
   },
   "devDependencies": {}
 }

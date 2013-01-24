@@ -18,7 +18,7 @@
 
 var webdriver = require('wd');
 var S = require('string');
-var util = require('util');
+var glob = require('glob');
 
 // Common functionality for assert/verify/waitFor/store step types. Only the code for actually
 // getting the value has to be implemented individually.
@@ -152,6 +152,8 @@ TestRun.prototype.next = function(callback) {
   }
   if (!executor) {
     var info = { 'success': false, 'error': new Error('Unable to load step type ' + stepType + '.') };
+    this.lastError = info.error;
+    this.success = false;
     if (this.listener && this.listener.endStep) {
       this.listener.endStep(this, this.currentStep(), info);
     }
@@ -351,9 +353,9 @@ function getDefaultListener(testRun) {
   return {
     'startTestRun': function(testRun, info) {
       if (info.success) {
-        console.log("\x1b[32mStarting test \x1b[30m" + testRun.name);
+        console.log("\x1b[32mStarting test " + testRun.name + "\x1b[30m");
       } else {
-        console.log("\x1b[31mUnable to start test \x1b[30m" + testRun.name + ": " + info.error);
+        console.log("\x1b[31mUnable to start test " + testRun.name + ": " + info.error + "\x1b[30m");
       }
     },
     'endTestRun': function(testRun, info) {
@@ -361,7 +363,7 @@ function getDefaultListener(testRun) {
         console.log("\x1b[32m\x1b[1mTest passed\x1b[30m\x1b[0m");
       } else {
         if (info.error) {
-          console.log("\x1b[31m\x1b[1mTest failed: \x1b[30m\x1b[0m" + info.error);
+          console.log("\x1b[31m\x1b[1mTest failed: " + info.error + "\x1b[30m\x1b[0m");
         } else {
           console.log("\x1b[31m\x1b[1mTest failed\x1b[30m\x1b[0m");
         }
@@ -375,7 +377,7 @@ function getDefaultListener(testRun) {
         console.log("\x1b[32mSuccess\x1b[30m");
       } else {
         if (info.error) {
-          console.log("\x1b[31mError: \x1b[30m" + info.error);
+          console.log("\x1b[31m" + info.error + "\x1b[30m");
         } else {
           console.log("\x1b[33mFailed\x1b[30m");
         }
@@ -392,8 +394,9 @@ var opt = require('optimist')
   .describe('listener', 'path to listener module')
   .describe('executorFactory', 'path to factory for extra type executors')
   .demand(1) // At least 1 script to execute.
-  .usage('Usage: $0 [--option value...] [script path...]\n\nPrefix brower options like browserName with "browser-", e.g. "--browser-browserName=firefox".\nPrefix driver options like host with "driver-", eg --driver-host=webdriver.foo.com.');
+  .usage('Usage: $0 [--option value...] [script-path...]\n\nPrefix brower options like browserName with "browser-", e.g. "--browser-browserName=firefox".\nPrefix driver options like host with "driver-", eg --driver-host=webdriver.foo.com.');
 
+// Process arguments.
 var argv = opt.argv;
 
 var browserOptions = { 'browserName': 'firefox' };
@@ -409,15 +412,6 @@ for (var k in argv) {
   }
 }
 
-var scripts = argv._.map(function(path) {
-  try {
-    return { 'script': JSON.parse(fs.readFileSync(path, "UTF-8")), 'name': path.replace(/.*\/|\\/, "").replace(/\.json$/, "") };
-  } catch (e) {
-    console.error('Unable to parse script ' + path + ': ' + e);
-    return null;
-  }
-}).filter(function(script) { return script != null; });
-
 var listener = null;
 if (argv.listener) {
   try {
@@ -427,6 +421,16 @@ if (argv.listener) {
     process.exit(78);
   }
 }
+
+var listenerFactory = function() { return null; };
+if (listener) {
+  listenerFactory = function(tr) { return listener.getInterpreterListener(tr); };
+} else {
+  if (!argv.silent && !argv.quiet) {
+    listenerFactory = getDefaultListener;
+  }
+}
+
 var exeFactory = null;
 if (argv.executorFactory) {
   try {
@@ -437,38 +441,86 @@ if (argv.executorFactory) {
   }
 }
 
+/** Parses a config JSON file and adds the resulting TestRuns to testRuns. */
+function parseConfigFile(fileContents, testRuns, silencePrints, listenerFactory, exeFactory) {
+  fileContents.configurations.forEach(function(config) {
+    var settingsList = config.settings;
+    if (!settingsList || settingsList.length == 0) {
+      settingsList = [{
+        'browserOptions': browserOptions,
+        'driverOptions': driverOptions
+      }];
+    }
+    settingsList.forEach(function(settings) {
+      config.scripts.forEach(function(pathToGlob) {
+        glob.sync(pathToGlob).forEach(function(path) {
+          var script = null;
+          try {
+            script = JSON.parse(fs.readFileSync(path, "UTF-8"));
+          } catch (e) {
+            console.error('Unable to load ' + path + ': ' + e);
+            process.exit(65);
+          }
+          var name = path.replace(/.*\/|\\/, "").replace(/\.json$/, '');
+          tr = new TestRun(script, name);
+          tr.browserOptions = settings.browserOptions || tr.browserOptions;
+          tr.driverOptions = settings.driverOptions || tr.driverOptions;
+          tr.silencePrints = silencePrints;
+          tr.listener = listenerFactory(tr);
+          if (exeFactory) {
+            tr.executorFactories.splice(0, 0, exeFactory);
+          }
+          testRuns.push(tr);
+        });
+      });
+    });
+  });
+};
+
+var testRuns = [];
+
+argv._.forEach(function(pathToGlob) {
+  glob.sync(pathToGlob).forEach(function(path) {
+    if (S(path).endsWith('.json')) {
+      var name = path.replace(/.*\/|\\/, "").replace(/\.json$/, "");
+      try {
+        var data = JSON.parse(fs.readFileSync(path, "UTF-8"));
+        if (data.type == 'script') {
+          var tr = new TestRun(data, name);
+          tr.silencePrints = argv.noPrint || argv.silent;
+          tr.browserOptions = browserOptions;
+          tr.driverOptions = driverOptions;
+          tr.listener = listenerFactory(tr);
+          if (exeFactory) {
+            tr.executorFactories.splice(0, 0, exeFactory);
+          }
+          testRuns.push(tr);
+        }
+        if (data.type == 'interpreter-config') {
+          parseConfigFile(data, testRuns, argv.noPrint || argv.silent, listenerFactory, exeFactory);
+        }
+      } catch (e) {
+        console.error('Unable to load ' + path + ': ' + e);
+        process.exit(65);
+      }
+    }
+  });
+});
+
 var index = -1;
 var successes = 0;
 function play() {
   index++;
-  if (index < scripts.length) {
-    var tr = new TestRun(scripts[index].script, scripts[index].name);
-    tr.silencePrints = argv.noPrint || argv.silent;
-    tr.browserOptions = browserOptions;
-    tr.driverOptions = driverOptions;
-    if (listener) {
-      tr.listener = listener.getInterpreterListener(tr);
-    } else {
-      if (!argv.silent && !argv.quiet) {
-        tr.listener = getDefaultListener(tr);
-      }
-    }
-    if (exeFactory) {
-      tr.executorFactories.splice(0, 0, exeFactory);
-    }
-    tr.run(function(info) {
-      if (!argv.silent) {
-        if (info.success) {
-          successes++;
-        }
-      }
+  if (index < testRuns.length) {
+    testRuns[index].run(function(info) {
+      if (info.success) { successes++; }
       play();
     });
   } else {
     if (!argv.silent) {
-      console.log("\x1b[" + (successes == scripts.length ? "32" : "31") + "m\x1b[1m" + successes + '/' + scripts.length + ' tests ran successfully. Exiting.\x1b[30m\x1b[0m');
+      console.log("\x1b[" + (successes == testRuns.length ? "32" : "31") + "m\x1b[1m" + successes + '/' + testRuns.length + ' tests ran successfully. Exiting.\x1b[30m\x1b[0m');
     }
-    process.exit(successes == scripts.length ? 0 : 1);
+    process.exit(successes == testRuns.length ? 0 : 1);
   }
 }
 play();
