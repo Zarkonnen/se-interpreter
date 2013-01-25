@@ -480,6 +480,13 @@ function parseConfigFile(fileContents, testRuns, silencePrints, listenerFactory,
   });
 };
 
+/** Substitutes expressions of the form ${FOO} for environment variables. */
+function subEnvVars(t) {
+  return t.replace(/\${([^}]+)}/g, function(match, varName) {
+    return process.env[varName];
+  });
+};
+
 var testRuns = [];
 
 argv._.forEach(function(pathToGlob) {
@@ -487,7 +494,8 @@ argv._.forEach(function(pathToGlob) {
     if (S(path).endsWith('.json')) {
       var name = path.replace(/.*\/|\\/, "").replace(/\.json$/, "");
       try {
-        var data = JSON.parse(fs.readFileSync(path, "UTF-8"));
+        var rawData = fs.readFileSync(path, "UTF-8");
+        var data = JSON.parse(rawData);
         if (data.type == 'script') {
           var tr = new TestRun(data, name);
           tr.silencePrints = argv.noPrint || argv.silent;
@@ -500,6 +508,7 @@ argv._.forEach(function(pathToGlob) {
           testRuns.push(tr);
         }
         if (data.type == 'interpreter-config') {
+          data = JSON.parse(subEnvVars(rawData));
           parseConfigFile(data, testRuns, argv.noPrint || argv.silent, listenerFactory, exeFactory);
         }
       } catch (e) {

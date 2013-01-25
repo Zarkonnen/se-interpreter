@@ -10,8 +10,8 @@
           },
           "browserOptions": {
             "browserName": "firefox",
-            "username": "zarkonnen",
-            "accessKey": "[CENSORED]"
+            "username": "${SAUCE_USERNAME}",
+            "accessKey": "${SAUCE_ACCESS_KEY}"
           }
         },
         {
@@ -21,7 +21,7 @@
         }
       ],
       "scripts": [
-        "test/dialogs_frames_windows/*"
+        "examples/dialogs_frames_windows/*"
       ]
     }
   ]
