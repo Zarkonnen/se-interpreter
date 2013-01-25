@@ -5,9 +5,11 @@ This is a command-line tool for interpreting [Selenium Builder](http://www.sebui
 
 You can supply scripts to the interpreter and have them played back on a Selenium server. You can also import the interpreter as a npm dependency and use it as a library, attaching listeners to get detailed information at each state of the playback process, and controlling the step-by-step execution.
 
-There is also a syntax for config files that let you specify a set of script runs.
+There is also a syntax for config files that let you specify a set of script runs. See the examples/ directory. Each config file contains one or more configurations, which in turn contain a list of scripts and one or multiple settings. Each script within a configuration is executed with each set of settings, making it easy to do cross-platform testing.
 
-se-interpreter is currently under development. It is not yet available through npm. It's being developed by [David Stark](mailto:david.stark@zarkonnen.com) at the behest of [Sauce Labs](http://saucelabs.com/), and licensed under the Apache License, Version 2.0:
+Finally, there's an example on how to set up a [Travis](https://travis-ci.org/) .travis.yml file to continuously test using se-interpreter.
+
+se-interpreter is currently under development, but will soon be available through npm. It's being developed by [David Stark](mailto:david.stark@zarkonnen.com) at the behest of [Sauce Labs](http://saucelabs.com/), and licensed under the Apache License, Version 2.0:
 
     Copyright 2013 Sauce Labs
 

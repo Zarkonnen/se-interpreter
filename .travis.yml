@@ -1,3 +1,0 @@
-language: node_js
-script:
-    - "./interpreter.js examples/example_travis_config.json"

@@ -10,8 +10,8 @@
           },
           "browserOptions": {
             "browserName": "firefox",
-            "username": "zarkonnen",
-            "accessKey": "273254a4-8ccb-4eb2-b27f-a76d6fd872b8"
+            "username": "${SAUCE_USERNAME}",
+            "accessKey": "${SAUCE_ACCESS_KEY}"
           }
         }
       ],
