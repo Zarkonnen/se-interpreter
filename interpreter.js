@@ -353,33 +353,33 @@ function getDefaultListener(testRun) {
   return {
     'startTestRun': function(testRun, info) {
       if (info.success) {
-        console.log("\x1b[32mStarting test " + testRun.name + "\x1b[30m");
+        console.log(testRun.name + ": \x1b[32mStarting test " + testRun.name + "\x1b[30m");
       } else {
-        console.log("\x1b[31mUnable to start test " + testRun.name + ": " + info.error + "\x1b[30m");
+        console.log(testRun.name + ": \x1b[31mUnable to start test " + testRun.name + ": " + info.error + "\x1b[30m");
       }
     },
     'endTestRun': function(testRun, info) {
       if (info.success) {
-        console.log("\x1b[32m\x1b[1mTest passed\x1b[30m\x1b[0m");
+        console.log(testRun.name + ": \x1b[32m\x1b[1mTest passed\x1b[30m\x1b[0m");
       } else {
         if (info.error) {
-          console.log("\x1b[31m\x1b[1mTest failed: " + info.error + "\x1b[30m\x1b[0m");
+          console.log(testRun.name + ": \x1b[31m\x1b[1mTest failed: " + info.error + "\x1b[30m\x1b[0m");
         } else {
-          console.log("\x1b[31m\x1b[1mTest failed\x1b[30m\x1b[0m");
+          console.log(testRun.name + ": \x1b[31m\x1b[1mTest failed\x1b[30m\x1b[0m");
         }
       }
     },
     'startStep': function(testRun, step) {
-      console.log(JSON.stringify(step));
+      console.log(testRun.name + ": " + JSON.stringify(step));
     },
     'endStep': function(testRun, step, info) {
       if (info.success) {
-        console.log("\x1b[32mSuccess\x1b[30m");
+        console.log(testRun.name + ": \x1b[32mSuccess\x1b[30m");
       } else {
         if (info.error) {
-          console.log("\x1b[31m" + info.error + "\x1b[30m");
+          console.log(testRun.name + ": \x1b[31m" + info.error + "\x1b[30m");
         } else {
-          console.log("\x1b[33mFailed\x1b[30m");
+          console.log(testRun.name + ": \x1b[33mFailed\x1b[30m");
         }
       }
     }
@@ -391,6 +391,7 @@ var opt = require('optimist')
   .default('quiet', false).describe('quiet', 'no per-step output')
   .default('noPrint', false).describe('noPrint', 'no print step output')
   .default('silent', false).describe('silent', 'no non-error output')
+  .default('parallel', 1).describe('parallel', 'number of tests to run in parallel')
   .describe('listener', 'path to listener module')
   .describe('executorFactory', 'path to factory for extra type executors')
   .demand(1) // At least 1 script to execute.
@@ -398,6 +399,8 @@ var opt = require('optimist')
 
 // Process arguments.
 var argv = opt.argv;
+
+var numParallelRunners = parseInt(argv.parallel);
 
 var browserOptions = { 'browserName': 'firefox' };
 for (var k in argv) {
@@ -509,18 +512,25 @@ argv._.forEach(function(pathToGlob) {
 
 var index = -1;
 var successes = 0;
-function play() {
+var lastRunFinishedIndex = testRuns.length + numParallelRunners - 1;
+function runNext() {
   index++;
   if (index < testRuns.length) {
     testRuns[index].run(function(info) {
       if (info.success) { successes++; }
-      play();
+      runNext();
     });
   } else {
-    if (!argv.silent) {
-      console.log("\x1b[" + (successes == testRuns.length ? "32" : "31") + "m\x1b[1m" + successes + '/' + testRuns.length + ' tests ran successfully. Exiting.\x1b[30m\x1b[0m');
+    if (index == lastRunFinishedIndex) { // We're the last runner to complete.
+      if (!argv.silent) {
+        console.log("\x1b[" + (successes == testRuns.length ? "32" : "31") + "m\x1b[1m" + successes + '/' + testRuns.length + ' tests ran successfully. Exiting.\x1b[30m\x1b[0m');
+      }
+      process.exit(successes == testRuns.length ? 0 : 1);
     }
-    process.exit(successes == testRuns.length ? 0 : 1);
   }
 }
-play();
+
+// Spawn as many parallel runners as desired.
+for (var i = 0; i < numParallelRunners; i++) {
+  runNext();
+}
