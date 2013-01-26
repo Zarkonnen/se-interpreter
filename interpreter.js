@@ -342,13 +342,6 @@ TestRun.prototype.locate = function(locatorName, callback, successCallback, fail
   });
 };
 
-exports.TestRun = TestRun;
-
-// Command-line usage.
-if (require.main !== module) {
-  return;
-}
-
 function getDefaultListener(testRun) {
   return {
     'startTestRun': function(testRun, info) {
@@ -384,6 +377,14 @@ function getDefaultListener(testRun) {
       }
     }
   };
+}
+
+exports.TestRun = TestRun;
+exports.getDefaultListener = getDefaultListener;
+
+// Command-line usage.
+if (require.main !== module) {
+  return;
 }
 
 var fs = require('fs');

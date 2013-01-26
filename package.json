@@ -2,13 +2,19 @@
   "author": "David Stark <david.stark@zarkonnen.com>",
   "name": "se-interpreter",
   "description": "Command-line interpreter for Selenium Builder test scripts.",
+  "tags": ["selenium", "webdriver", "testing"],
   "version": "0.1.1",
   "homepage": "http://www.sebuilder.com/",
   "repository": {
     "type": "git",
     "url": "https://github.com/Zarkonnen/se-interpreter.git"
   },
+  "bugs": {
+    "url": "https://github.com/Zarkonnen/se-interpreter/issues",
+    "email": "david.stark@zarkonnen.com"
+  },
   "main": "interpreter",
+  "bin": "./interpreter.js",
   "engines": {
     "node": ">= 0.4.11"
   },
