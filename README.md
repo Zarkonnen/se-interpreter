@@ -1,4 +1,4 @@
-se-interpreter
+se-interpreter [![Build Status](https://api.travis-ci.org/Zarkonnen/se-interpreter.png)](http://travis-ci.org/Zarkonnen/se-interpreter)
 ==============
 
 This is a command-line tool for interpreting [Selenium Builder](http://www.sebuilder.com) JSON script files, based on [node](http://nodejs.org/) and the [wd](https://github.com/admc/wd) Javascript client driver for [Selenium 2](http://seleniumhq.org/). It aims to have the same functionality as its [Java-based counterpart](https://github.com/sebuilder/se-builder/wiki/Se-Interpreter).
