@@ -342,7 +342,7 @@ TestRun.prototype.locate = function(locatorName, callback, successCallback, fail
   });
 };
 
-function getDefaultListener(testRun) {
+function getInterpreterListener(testRun) {
   return {
     'startTestRun': function(testRun, info) {
       if (info.success) {
@@ -380,7 +380,7 @@ function getDefaultListener(testRun) {
 }
 
 exports.TestRun = TestRun;
-exports.getDefaultListener = getDefaultListener;
+exports.getInterpreterListener = getInterpreterListener;
 
 // Command-line usage.
 if (require.main !== module) {
@@ -431,7 +431,7 @@ if (listener) {
   listenerFactory = function(tr) { return listener.getInterpreterListener(tr); };
 } else {
   if (!argv.silent && !argv.quiet) {
-    listenerFactory = getDefaultListener;
+    listenerFactory = getInterpreterListener;
   }
 }
 

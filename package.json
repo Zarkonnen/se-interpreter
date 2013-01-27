@@ -3,7 +3,7 @@
   "name": "se-interpreter",
   "description": "Command-line interpreter for Selenium Builder test scripts.",
   "tags": ["selenium", "webdriver", "testing"],
-  "version": "0.1.1",
+  "version": "0.1.2",
   "homepage": "http://www.sebuilder.com/",
   "repository": {
     "type": "git",
