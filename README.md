@@ -31,19 +31,19 @@ Install se-interpreter through [npm](https://npmjs.org/) by invoking
 ## Basic usage
 First, make sure you have a local [Selenium Server](http://seleniumhq.org/download/) running. Then, invoke se-interpreter:
 
-    node interpreter.js examples/tests/get.json
+    node ./node_modules/.bin/se-interpreter examples/tests/get.json
 
 This should start up an instance of Firefox, navigate to [the Selenium Builder site](http://sebuilder.github.com/se-builder/), and then exit successfully.
 
 You can specify multiple commands:
 
-    node interpreter.js examples/tests/get.json examples/tests/assertTitle.json
+    node ./node_modules/.bin/se-interpreter examples/tests/get.json examples/tests/assertTitle.json
     
 The second one of these tests is intended to fail.
 
 And you can use glob syntax to specify whole directories:
 
-    node interpreter.js examples/tests/a_directory/*
+    node ./node_modules/.bin/se-interpreter examples/tests/a_directory/*
 
 Again, the second test is intended to fail.
 
@@ -133,7 +133,7 @@ To set up a repository to run its Builder tests on Travis, add a `.travis.yml` f
     before_script:
         - "npm install se-interpreter"
     script:
-        - "node se-interpreter my_interpreter_config.json"
+        - "node ./node_modules/.bin/se-interpreter my_interpreter_config.json"
     env:
         global:
             - SAUCE_USERNAME=<username>
@@ -161,7 +161,7 @@ Second, you can specify a `--executorFactory=`_path-to-factory_ command line arg
 ## Using se-interpreter as a module
 It's also possible to use se-interpreter as a module in other node code, using `require('se-interpreter')`. To try this out, you can start up Selenium Server, enter `node` and drive a simple interpreter session from the command line:
 
-    var si = require('se-interpreter');
+    var si = require('./node_modules/.bin/se-interpreter');
     var tr = new si.TestRun({"steps": [{"type":"get", "url":"http://www.google.com"}]}, "Go to Google");
     tr.listener = si.getInterpreterListener(tr);
     tr.start();

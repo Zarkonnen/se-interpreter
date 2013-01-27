@@ -19,6 +19,7 @@
 var webdriver = require('wd');
 var S = require('string');
 var glob = require('glob');
+var util = require('util');
 
 // Common functionality for assert/verify/waitFor/store step types. Only the code for actually
 // getting the value has to be implemented individually.
@@ -348,7 +349,7 @@ function getInterpreterListener(testRun) {
       if (info.success) {
         console.log(testRun.name + ": \x1b[32mStarting test " + testRun.name + "\x1b[30m");
       } else {
-        console.log(testRun.name + ": \x1b[31mUnable to start test " + testRun.name + ": " + info.error + "\x1b[30m");
+        console.log(testRun.name + ": \x1b[31mUnable to start test " + testRun.name + ": " + util.inspect(info.error) + "\x1b[30m");
       }
     },
     'endTestRun': function(testRun, info) {
@@ -356,7 +357,7 @@ function getInterpreterListener(testRun) {
         console.log(testRun.name + ": \x1b[32m\x1b[1mTest passed\x1b[30m\x1b[0m");
       } else {
         if (info.error) {
-          console.log(testRun.name + ": \x1b[31m\x1b[1mTest failed: " + info.error + "\x1b[30m\x1b[0m");
+          console.log(testRun.name + ": \x1b[31m\x1b[1mTest failed: " + util.inspect(info.error) + "\x1b[30m\x1b[0m");
         } else {
           console.log(testRun.name + ": \x1b[31m\x1b[1mTest failed\x1b[30m\x1b[0m");
         }
@@ -370,7 +371,7 @@ function getInterpreterListener(testRun) {
         console.log(testRun.name + ": \x1b[32mSuccess\x1b[30m");
       } else {
         if (info.error) {
-          console.log(testRun.name + ": \x1b[31m" + info.error + "\x1b[30m");
+          console.log(testRun.name + ": \x1b[31m" + util.inspect(info.error) + "\x1b[30m");
         } else {
           console.log(testRun.name + ": \x1b[33mFailed\x1b[30m");
         }
