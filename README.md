@@ -26,24 +26,24 @@ se-interpreter is developed by [David Stark](mailto:david.stark@zarkonnen.com) a
 ## Installation
 Install se-interpreter through [npm](https://npmjs.org/) by invoking
 
-    npm install se-interpreter
+    sudo npm install -g se-interpreter
 
 ## Basic usage
 First, make sure you have a local [Selenium Server](http://seleniumhq.org/download/) running. Then, invoke se-interpreter:
 
-    node ./node_modules/.bin/se-interpreter examples/tests/get.json
+    se-interpreter examples/tests/get.json
 
 This should start up an instance of Firefox, navigate to [the Selenium Builder site](http://sebuilder.github.com/se-builder/), and then exit successfully.
 
 You can specify multiple commands:
 
-    node ./node_modules/.bin/se-interpreter examples/tests/get.json examples/tests/assertTitle.json
+    se-interpreter examples/tests/get.json examples/tests/assertTitle.json
     
 The second one of these tests is intended to fail.
 
 And you can use glob syntax to specify whole directories:
 
-    node ./node_modules/.bin/se-interpreter examples/tests/a_directory/*
+    se-interpreter examples/tests/a_directory/*
 
 Again, the second test is intended to fail.
 
@@ -131,9 +131,9 @@ To set up a repository to run its Builder tests on Travis, add a `.travis.yml` f
 
     language: node_js
     before_script:
-        - "npm install se-interpreter"
+        - "npm install -g se-interpreter"
     script:
-        - "node ./node_modules/.bin/se-interpreter my_interpreter_config.json"
+        - "se-interpreter my_interpreter_config.json"
     env:
         global:
             - SAUCE_USERNAME=<username>
@@ -159,9 +159,13 @@ First, you can add extra files into the `step_types` directory in the module. Se
 Second, you can specify a `--executorFactory=`_path-to-factory_ command line argument. The executor factory is a module that should export a function called `get(stepType)`, returning either an step type implementation/getter, or null if the module can't supply an implementation for playing back a step called `stepType`. See `examples/example_factory.js` for a simple example.
 
 ## Using se-interpreter as a module
-It's also possible to use se-interpreter as a module in other node code, using `require('se-interpreter')`. To try this out, you can start up Selenium Server, enter `node` and drive a simple interpreter session from the command line:
+It's also possible to use se-interpreter as a module in other node code, using `require('se-interpreter')`. To try this out, install se-interpreter locally as a node module:
 
-    var si = require('./node_modules/.bin/se-interpreter');
+    npm install se-interpreter
+
+Then, start up a Selenium Server, enter `node` and drive a simple interpreter session from the command line:
+
+    var si = require('se-interpreter');
     var tr = new si.TestRun({"steps": [{"type":"get", "url":"http://www.google.com"}]}, "Go to Google");
     tr.listener = si.getInterpreterListener(tr);
     tr.start();
