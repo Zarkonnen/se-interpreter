@@ -47,6 +47,10 @@ And you can use glob syntax to specify whole directories:
 
 Again, the second test is intended to fail.
 
+## Suites
+
+You can also specify paths to suites, which will execute all scripts in them.
+
 ## Command-line options
 * `--quiet` Disables printing of information about each step and script. Only print step outputs and the final result are reported.
 * `--noPrint` Disables print step output.
@@ -63,7 +67,7 @@ To run your tests on Sauce OnDemand, use the following parameters, with your Sau
 You can run multiple tests in parallel on OnDemand, but note that if `--parallel` is set to more than the maximum number of parallel tests for your account, __the interpreter will hang indefinitely__. For a free account, this maximum number is two.
 
 ## Configuration files
-Instead of specifying the scripts and configuration on the command-line, you can use JSON-based configuration files. An example:
+Instead of specifying the scripts/suites and configuration on the command-line, you can use JSON-based configuration files. An example:
 
     {
       "type": "interpreter-config",
