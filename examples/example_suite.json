@@ -5,11 +5,11 @@
   "scripts": [
     {
       "where": "local",
-      "path": "tests/a_directory/assertTitle.json"
+      "path": "tests/printTitle.json"
     },
     {
       "where": "local",
-      "path": "tests/a_directory/get.json"
+      "path": "tests/get.json"
     }
   ]
 }
