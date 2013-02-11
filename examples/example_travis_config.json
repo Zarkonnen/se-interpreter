@@ -16,7 +16,8 @@
         }
       ],
       "scripts": [
-        "examples/tests/full_example.json"
+        "examples/tests/full_example.json",
+        "examples/example_suite.json"
       ]
     }
   ]

@@ -20,6 +20,8 @@ var webdriver = require('wd');
 var S = require('string');
 var glob = require('glob');
 var util = require('util');
+var pathLib = require('path');
+var fs = require('fs');
 
 // Common functionality for assert/verify/waitFor/store step types. Only the code for actually
 // getting the value has to be implemented individually.
@@ -380,15 +382,106 @@ function getInterpreterListener(testRun) {
   };
 }
 
+function parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions) {
+  var rawData = fs.readFileSync(path, "UTF-8");
+  var data = JSON.parse(rawData);
+  if (data.type == 'script') {
+    var tr = createTestRun(path, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions);
+    if (tr) { testRuns.push(tr); }
+  }
+  if (data.type == 'interpreter-config') {
+    data = JSON.parse(subEnvVars(rawData));
+    parseConfigFile(data, testRuns, silencePrints, listenerFactory, exeFactory);
+  }
+  if (data.type == 'suite') {
+    parseSuiteFile(path, data, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions);
+  }
+}
+
+/** Parses a config JSON file and adds the resulting TestRuns to testRuns. */
+function parseConfigFile(fileContents, testRuns, silencePrints, listenerFactory, exeFactory) {
+  fileContents.configurations.forEach(function(config) {
+    var settingsList = config.settings;
+    if (!settingsList || settingsList.length == 0) {
+      settingsList = [{
+        'browserOptions': browserOptions,
+        'driverOptions': driverOptions
+      }];
+    }
+    settingsList.forEach(function(settings) {
+      config.scripts.forEach(function(pathToGlob) {
+        glob.sync(pathToGlob).forEach(function(path) {
+          if (S(path).endsWith('.json')) {
+            parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, settings.browserOptions, settings.driverOptions);
+          }
+        });
+      });
+    });
+  });
+};
+
+/** Parses a suite JSON file and adds the resulting TestRuns to testRuns. */
+function parseSuiteFile(path, fileContents, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions) {
+  fileContents.scripts.forEach(function(scriptLocation) {
+    if (scriptLocation.where != "local") {
+      console.error('Suite members stored using ' + scriptLocation.where + ' are not supported.');
+      return null;
+    }
+    var relPath = pathLib.join(path, '..', scriptLocation.path);
+    var tr = null;
+    if (fs.existsSync(relPath)) {
+      tr = createTestRun(relPath, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions);
+    }
+    if (tr) {
+      testRuns.push(tr);
+    } else {
+      tr = createTestRun(scriptLocation.path, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions);
+      if (tr) { testRuns.push(tr); }
+    }
+  });
+}
+
+/** Loads a script JSON file and turns it into a test run. */
+function createTestRun(path, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions) {
+  var script = null;
+  try {
+    script = JSON.parse(fs.readFileSync(path, "UTF-8"));
+  } catch (e) {
+    console.error('Unable to load ' + path + ': ' + e);
+    return null;
+  }
+  var name = path.replace(/.*\/|\\/, "").replace(/\.json$/, '');
+  tr = new TestRun(script, name);
+  tr.browserOptions = browserOptions || tr.browserOptions;
+  tr.driverOptions = driverOptions || tr.driverOptions;
+  tr.silencePrints = silencePrints;
+  tr.listener = listenerFactory(tr);
+  if (exeFactory) {
+    tr.executorFactories.splice(0, 0, exeFactory);
+  }
+  return tr;
+}
+
+/** Substitutes expressions of the form ${FOO} for environment variables. */
+function subEnvVars(t) {
+  return t.replace(/\${([^}]+)}/g, function(match, varName) {
+    return process.env[varName];
+  });
+};
+
 exports.TestRun = TestRun;
 exports.getInterpreterListener = getInterpreterListener;
+exports.parseJSONFile = parseJSONFile;
+exports.parseConfigFile = parseConfigFile;
+exports.parseSuiteFile = parseSuiteFile;
+exports.createTestRun = createTestRun;
+exports.subEnvVars = subEnvVars;
 
 // Command-line usage.
 if (require.main !== module) {
   return;
 }
 
-var fs = require('fs');
 var opt = require('optimist')
   .default('quiet', false).describe('quiet', 'no per-step output')
   .default('noPrint', false).describe('noPrint', 'no print step output')
@@ -446,73 +539,15 @@ if (argv.executorFactory) {
   }
 }
 
-/** Parses a config JSON file and adds the resulting TestRuns to testRuns. */
-function parseConfigFile(fileContents, testRuns, silencePrints, listenerFactory, exeFactory) {
-  fileContents.configurations.forEach(function(config) {
-    var settingsList = config.settings;
-    if (!settingsList || settingsList.length == 0) {
-      settingsList = [{
-        'browserOptions': browserOptions,
-        'driverOptions': driverOptions
-      }];
-    }
-    settingsList.forEach(function(settings) {
-      config.scripts.forEach(function(pathToGlob) {
-        glob.sync(pathToGlob).forEach(function(path) {
-          var script = null;
-          try {
-            script = JSON.parse(fs.readFileSync(path, "UTF-8"));
-          } catch (e) {
-            console.error('Unable to load ' + path + ': ' + e);
-            process.exit(65);
-          }
-          var name = path.replace(/.*\/|\\/, "").replace(/\.json$/, '');
-          tr = new TestRun(script, name);
-          tr.browserOptions = settings.browserOptions || tr.browserOptions;
-          tr.driverOptions = settings.driverOptions || tr.driverOptions;
-          tr.silencePrints = silencePrints;
-          tr.listener = listenerFactory(tr);
-          if (exeFactory) {
-            tr.executorFactories.splice(0, 0, exeFactory);
-          }
-          testRuns.push(tr);
-        });
-      });
-    });
-  });
-};
-
-/** Substitutes expressions of the form ${FOO} for environment variables. */
-function subEnvVars(t) {
-  return t.replace(/\${([^}]+)}/g, function(match, varName) {
-    return process.env[varName];
-  });
-};
-
 var testRuns = [];
 
 argv._.forEach(function(pathToGlob) {
   glob.sync(pathToGlob).forEach(function(path) {
     if (S(path).endsWith('.json')) {
       var name = path.replace(/.*\/|\\/, "").replace(/\.json$/, "");
+      var silencePrints = argv.noPrint || argv.silent;
       try {
-        var rawData = fs.readFileSync(path, "UTF-8");
-        var data = JSON.parse(rawData);
-        if (data.type == 'script') {
-          var tr = new TestRun(data, name);
-          tr.silencePrints = argv.noPrint || argv.silent;
-          tr.browserOptions = browserOptions;
-          tr.driverOptions = driverOptions;
-          tr.listener = listenerFactory(tr);
-          if (exeFactory) {
-            tr.executorFactories.splice(0, 0, exeFactory);
-          }
-          testRuns.push(tr);
-        }
-        if (data.type == 'interpreter-config') {
-          data = JSON.parse(subEnvVars(rawData));
-          parseConfigFile(data, testRuns, argv.noPrint || argv.silent, listenerFactory, exeFactory);
-        }
+        parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions);
       } catch (e) {
         console.error('Unable to load ' + path + ': ' + e);
         process.exit(65);
