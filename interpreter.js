@@ -382,24 +382,24 @@ function getInterpreterListener(testRun) {
   };
 }
 
-function parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions) {
+function parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions) {
   var rawData = fs.readFileSync(path, "UTF-8");
   var data = JSON.parse(rawData);
   if (data.type == 'script') {
-    var tr = createTestRun(path, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions);
+    var tr = createTestRun(path, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions);
     if (tr) { testRuns.push(tr); }
   }
   if (data.type == 'interpreter-config') {
     data = JSON.parse(subEnvVars(rawData));
-    parseConfigFile(data, testRuns, silencePrints, listenerFactory, exeFactory);
+    parseConfigFile(data, testRuns, silencePrints, listenerFactory, exeFactory, listenerOptions);
   }
   if (data.type == 'suite') {
-    parseSuiteFile(path, data, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions);
+    parseSuiteFile(path, data, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions);
   }
 }
 
 /** Parses a config JSON file and adds the resulting TestRuns to testRuns. */
-function parseConfigFile(fileContents, testRuns, silencePrints, listenerFactory, exeFactory) {
+function parseConfigFile(fileContents, testRuns, silencePrints, listenerFactory, exeFactory, listenerOptions) {
   fileContents.configurations.forEach(function(config) {
     var settingsList = config.settings;
     if (!settingsList || settingsList.length == 0) {
@@ -412,7 +412,7 @@ function parseConfigFile(fileContents, testRuns, silencePrints, listenerFactory,
       config.scripts.forEach(function(pathToGlob) {
         glob.sync(pathToGlob).forEach(function(path) {
           if (S(path).endsWith('.json')) {
-            parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, settings.browserOptions, settings.driverOptions);
+            parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, settings.browserOptions, settings.driverOptions, listenerOptions);
           }
         });
       });
@@ -421,7 +421,7 @@ function parseConfigFile(fileContents, testRuns, silencePrints, listenerFactory,
 };
 
 /** Parses a suite JSON file and adds the resulting TestRuns to testRuns. */
-function parseSuiteFile(path, fileContents, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions) {
+function parseSuiteFile(path, fileContents, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions) {
   fileContents.scripts.forEach(function(scriptLocation) {
     if (scriptLocation.where != "local") {
       console.error('Suite members stored using ' + scriptLocation.where + ' are not supported.');
@@ -430,19 +430,19 @@ function parseSuiteFile(path, fileContents, testRuns, silencePrints, listenerFac
     var relPath = pathLib.join(path, '..', scriptLocation.path);
     var tr = null;
     if (fs.existsSync(relPath)) {
-      tr = createTestRun(relPath, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions);
+      tr = createTestRun(relPath, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions);
     }
     if (tr) {
       testRuns.push(tr);
     } else {
-      tr = createTestRun(scriptLocation.path, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions);
+      tr = createTestRun(scriptLocation.path, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions);
       if (tr) { testRuns.push(tr); }
     }
   });
 }
 
 /** Loads a script JSON file and turns it into a test run. */
-function createTestRun(path, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions) {
+function createTestRun(path, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions) {
   var script = null;
   try {
     script = JSON.parse(fs.readFileSync(path, "UTF-8"));
@@ -455,7 +455,7 @@ function createTestRun(path, silencePrints, listenerFactory, exeFactory, browser
   tr.browserOptions = browserOptions || tr.browserOptions;
   tr.driverOptions = driverOptions || tr.driverOptions;
   tr.silencePrints = silencePrints;
-  tr.listener = listenerFactory(tr);
+  tr.listener = listenerFactory(tr, listenerOptions);
   if (exeFactory) {
     tr.executorFactories.splice(0, 0, exeFactory);
   }
@@ -490,7 +490,7 @@ var opt = require('optimist')
   .describe('listener', 'path to listener module')
   .describe('executorFactory', 'path to factory for extra type executors')
   .demand(1) // At least 1 script to execute.
-  .usage('Usage: $0 [--option value...] [script-path...]\n\nPrefix brower options like browserName with "browser-", e.g. "--browser-browserName=firefox".\nPrefix driver options like host with "driver-", eg --driver-host=webdriver.foo.com.');
+  .usage('Usage: $0 [--option value...] [script-path...]\n\nPrefix brower options like browserName with "browser-", e.g. "--browser-browserName=firefox".\nPrefix driver options like host with "driver-", eg --driver-host=webdriver.foo.com.\nPrefix listener module options with "listener-".');
 
 // Process arguments.
 var argv = opt.argv;
@@ -510,6 +510,13 @@ for (var k in argv) {
   }
 }
 
+var listenerOptions = {};
+for (var k in argv) {
+  if (S(k).startsWith('listener-')) {
+    listenerOptions[k.substring('listener-'.length)] = argv[k];
+  }
+}
+
 var listener = null;
 if (argv.listener) {
   try {
@@ -522,7 +529,7 @@ if (argv.listener) {
 
 var listenerFactory = function() { return null; };
 if (listener) {
-  listenerFactory = function(tr) { return listener.getInterpreterListener(tr); };
+  listenerFactory = function(tr, listenerOptions) { return listener.getInterpreterListener(tr, listenerOptions, exports); };
 } else {
   if (!argv.silent && !argv.quiet) {
     listenerFactory = getInterpreterListener;
@@ -547,7 +554,7 @@ argv._.forEach(function(pathToGlob) {
       var name = path.replace(/.*\/|\\/, "").replace(/\.json$/, "");
       var silencePrints = argv.noPrint || argv.silent;
       try {
-        parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions);
+        parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions);
       } catch (e) {
         console.error('Unable to load ' + path + ': ' + e);
         process.exit(65);
@@ -571,7 +578,7 @@ function runNext() {
       if (!argv.silent) {
         console.log("\x1b[" + (successes == testRuns.length ? "32" : "31") + "m\x1b[1m" + successes + '/' + testRuns.length + ' tests ran successfully. Exiting.\x1b[30m\x1b[0m');
       }
-      process.exit(successes == testRuns.length ? 0 : 1);
+      process.on('exit', function() { process.exit(successes == testRuns.length ? 0 : 1); });
     }
   }
 }
