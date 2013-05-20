@@ -288,7 +288,7 @@ TestRun.prototype.do = function(fName, args, callback, successCallback, failureC
     if (failureCallback) {
       failureCallback(new Error('Webdriver has no function "' + fName + '".'));
     } else {
-      cb({'success': false, 'error': new Error('Webdriver has no function "' + fName + '".') });
+      callback({'success': false, 'error': new Error('Webdriver has no function "' + fName + '".') });
     }
     return; 
   }
