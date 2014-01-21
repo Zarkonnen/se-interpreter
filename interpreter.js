@@ -22,6 +22,7 @@ var glob = require('glob');
 var util = require('util');
 var pathLib = require('path');
 var fs = require('fs');
+var _ = require('lodash');
 
 // Common functionality for assert/verify/waitFor/store step types. Only the code for actually
 // getting the value has to be implemented individually.
@@ -30,7 +31,7 @@ var prefixes = {
     getter.run(testRun, function(info) {
       if (info.error) { callback(info); return; }
       var match = getter.cmp ? info.value == testRun.p(getter.cmp) : info.value;
-      
+
       if (testRun.currentStep().negated) {
         if (match) {
           callback({ 'success': false, 'error': new Error(getter.cmp ? getter.cmp + ' matches' : getter.name + ' is true') });
@@ -73,9 +74,9 @@ var prefixes = {
             callback({ 'success': false, 'error': info.error || new Error('Wait timed out.') });
           }
         }
-      }); 
+      });
     }
-    
+
     setTimeout(test, 500);
   }
 };
@@ -96,24 +97,34 @@ DefaultExecutorFactory.prototype.get = function(stepType) {
 };
 
 /** Encapsulates a single test run. */
-var TestRun = function(script, name) {
-  this.vars = {};
-  this.script = script;
-  this.stepIndex = -1;
-  this.wd = null;
-  this.silencePrints = false;
-  this.name = name || 'Untitled';
-  this.browserOptions = { 'browserName': 'firefox' };
-  this.driverOptions = {};
-  this.listener = null;
-  this.success = true;
-  this.lastError = null;
-  this.executorFactories = [new DefaultExecutorFactory()];
+/** Encapsulates a single test run. */
+var TestRun = function(script, name, options) {
+    var defaultOptions = {
+        wd: null,
+        browserOptions: {
+            'browserName': 'firefox'
+        }
+    };
+    var options = _.defaults(options, defaultOptions);
+    this.vars = {};
+    this.script = script;
+    this.stepIndex = -1;
+    this.wd = options.wd;
+    this.silencePrints = false;
+    this.name = name || 'Untitled';
+    this.browserOptions = options.browserOptions;
+    this.driverOptions = {};
+    this.listener = null;
+    this.success = true;
+    this.lastError = null;
+    this.executorFactories = [new DefaultExecutorFactory()];
 };
 
 TestRun.prototype.start = function(callback) {
   callback = callback || function() {};
-  this.wd = webdriver.remote(this.driverOptions);
+    if (!this.wd) {
+        this.wd = webdriver.remote(this.driverOptions);
+    }
   this.browserOptions.name = this.name;
   var testRun = this;
   this.wd.init(this.browserOptions, function(err) {
@@ -266,7 +277,7 @@ TestRun.prototype.setVar = function(k, v) {
 TestRun.prototype.p = function(name) {
   var s = this.currentStep();
   if (!(name in s)) {
-    throw new Error('Missing parameter "' + name + '" in step #' + (this.stepIndex + 1) + '.'); 
+    throw new Error('Missing parameter "' + name + '" in step #' + (this.stepIndex + 1) + '.');
   }
   var v = s[name];
   for (var k in this.vars) {
@@ -290,7 +301,7 @@ TestRun.prototype.do = function(fName, args, callback, successCallback, failureC
     } else {
       callback({'success': false, 'error': new Error('Webdriver has no function "' + fName + '".') });
     }
-    return; 
+    return;
   }
   this.wd[fName].apply(this.wd, args.concat([function(err) {
     if (err) {
