@@ -30,7 +30,7 @@ var prefixes = {
     getter.run(testRun, function(info) {
       if (info.error) { callback(info); return; }
       var match = getter.cmp ? info.value == testRun.p(getter.cmp) : info.value;
-      
+
       if (testRun.currentStep().negated) {
         if (match) {
           callback({ 'success': false, 'error': new Error(getter.cmp ? getter.cmp + ' matches' : getter.name + ' is true') });
@@ -73,9 +73,9 @@ var prefixes = {
             callback({ 'success': false, 'error': info.error || new Error('Wait timed out.') });
           }
         }
-      }); 
+      });
     }
-    
+
     setTimeout(test, 500);
   }
 };
@@ -248,7 +248,7 @@ TestRun.prototype.run = function(runCallback, stepCallback) {
       }
       runCallback({'success': false, 'error': err });
     });
-  };
+  }
 };
 
 TestRun.prototype.reset = function() {
@@ -266,7 +266,7 @@ TestRun.prototype.setVar = function(k, v) {
 TestRun.prototype.p = function(name) {
   var s = this.currentStep();
   if (!(name in s)) {
-    throw new Error('Missing parameter "' + name + '" in step #' + (this.stepIndex + 1) + '.'); 
+    throw new Error('Missing parameter "' + name + '" in step #' + (this.stepIndex + 1) + '.');
   }
   var v = s[name];
   for (var k in this.vars) {
@@ -290,7 +290,7 @@ TestRun.prototype.do = function(fName, args, callback, successCallback, failureC
     } else {
       callback({'success': false, 'error': new Error('Webdriver has no function "' + fName + '".') });
     }
-    return; 
+    return;
   }
   this.wd[fName].apply(this.wd, args.concat([function(err) {
     if (err) {
@@ -402,7 +402,7 @@ function parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactor
 function parseConfigFile(fileContents, testRuns, silencePrints, listenerFactory, exeFactory, listenerOptions) {
   fileContents.configurations.forEach(function(config) {
     var settingsList = config.settings;
-    if (!settingsList || settingsList.length == 0) {
+    if (!settingsList || settingsList.length === 0) {
       settingsList = [{
         'browserOptions': browserOptions,
         'driverOptions': driverOptions
@@ -418,7 +418,7 @@ function parseConfigFile(fileContents, testRuns, silencePrints, listenerFactory,
       });
     });
   });
-};
+}
 
 /** Parses a suite JSON file and adds the resulting TestRuns to testRuns. */
 function parseSuiteFile(path, fileContents, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions) {
@@ -467,7 +467,7 @@ function subEnvVars(t) {
   return t.replace(/\${([^}]+)}/g, function(match, varName) {
     return process.env[varName];
   });
-};
+}
 
 exports.TestRun = TestRun;
 exports.getInterpreterListener = getInterpreterListener;
@@ -495,7 +495,7 @@ var opt = require('optimist')
 // Process arguments.
 var argv = opt.argv;
 
-var numParallelRunners = parseInt(argv.parallel);
+var numParallelRunners = parseInt(argv.parallel, 10);
 
 var browserOptions = { 'browserName': 'firefox' };
 for (var k in argv) {
