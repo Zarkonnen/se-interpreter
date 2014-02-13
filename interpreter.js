@@ -539,10 +539,13 @@ if (listener) {
 
 var exeFactory = null;
 if (argv.executorFactory) {
+  var resolved_path = null;
   try {
-    exeFactory = require(argv.executorFactory);
+    resolved_path = pathLib.resolve(argv.executorFactory);
+    exeFactory = require(resolved_path);
   } catch (e) {
-    console.error('Unable to load executor factory module ' + argv.executorFactory + ': ' + e);
+    console.error('Unable to load executor factory module from: "' + resolved_path + '": ' + e);
+    resolved_path = null;
     process.exit(78);
   }
 }
