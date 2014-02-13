@@ -520,9 +520,10 @@ for (var k in argv) {
 var listener = null;
 if (argv.listener) {
   try {
-    listener = require(argv.listener);
+    var resolved_path = pathLib.resolve(argv.listener);
+    listener = require(resolved_path);
   } catch (e) {
-    console.error('Unable to load listener module ' + argv.listener + ': ' + e);
+    console.error('Unable to load listener module from: "' + resolved_path + '": ' + e);
     process.exit(78);
   }
 }
