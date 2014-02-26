@@ -22,6 +22,7 @@ var glob = require('glob');
 var util = require('util');
 var pathLib = require('path');
 var fs = require('fs');
+var colors = require('colors');
 
 // Common functionality for assert/verify/waitFor/store step types. Only the code for actually
 // getting the value has to be implemented individually.
@@ -349,33 +350,32 @@ function getInterpreterListener(testRun) {
   return {
     'startTestRun': function(testRun, info) {
       if (info.success) {
-        console.log(testRun.name + ": \x1b[32mStarting test " + testRun.name + "\x1b[30m");
+        console.log(testRun.name + ": Starting test ".green +" ("+ testRun.browserOptions.browserName +") ".yellow + testRun.name );
       } else {
-        console.log(testRun.name + ": \x1b[31mUnable to start test " + testRun.name + ": " + util.inspect(info.error) + "\x1b[30m");
+        console.log(testRun.name + ": Unable to start test ".red + testRun.name + ": " + util.inspect(info.error));
       }
     },
     'endTestRun': function(testRun, info) {
       if (info.success) {
-        console.log(testRun.name + ": \x1b[32m\x1b[1mTest passed\x1b[30m\x1b[0m");
+        console.log(testRun.name + ": Test passed".green);
       } else {
         if (info.error) {
-          console.log(testRun.name + ": \x1b[31m\x1b[1mTest failed: " + util.inspect(info.error) + "\x1b[30m\x1b[0m");
+          console.log(testRun.name + ": Test failed: ".red + util.inspect(info.error));
         } else {
-          console.log(testRun.name + ": \x1b[31m\x1b[1mTest failed\x1b[30m\x1b[0m");
+          console.log(testRun.name + ": Test failed ".red);
         }
       }
     },
     'startStep': function(testRun, step) {
-      console.log(testRun.name + ": " + JSON.stringify(step));
     },
     'endStep': function(testRun, step, info) {
       if (info.success) {
-        console.log(testRun.name + ": \x1b[32mSuccess\x1b[30m");
+        console.log(testRun.name + ": Success ".green + JSON.stringify(step).grey);
       } else {
         if (info.error) {
-          console.log(testRun.name + ": \x1b[31m" + util.inspect(info.error) + "\x1b[30m");
+          console.log(testRun.name + ": Failed ".red + util.inspect(info.error));
         } else {
-          console.log(testRun.name + ": \x1b[33mFailed\x1b[30m");
+          console.log(testRun.name + ": Failed ".red);
         }
       }
     }
@@ -576,7 +576,15 @@ function runNext() {
   } else {
     if (index == lastRunFinishedIndex) { // We're the last runner to complete.
       if (!argv.silent) {
-        console.log("\x1b[" + (successes == testRuns.length ? "32" : "31") + "m\x1b[1m" + successes + '/' + testRuns.length + ' tests ran successfully. Exiting.\x1b[30m\x1b[0m');
+
+        var message = successes + '/' + testRuns.length + ' tests ran successfully. Exiting';
+            message = message.red;
+
+        if (successes === testRuns.length) {
+          message = message.green;
+        }
+
+        console.log(message);
       }
       process.on('exit', function() { process.exit(successes == testRuns.length ? 0 : 1); });
     }
