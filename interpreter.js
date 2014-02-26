@@ -390,9 +390,19 @@ function parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactor
     if (tr) { testRuns.push(tr); }
   }
   if (data.type == 'interpreter-config') {
-    data = JSON.parse(subEnvVars(rawData));
-    parseConfigFile(data, testRuns, silencePrints, listenerFactory, exeFactory, listenerOptions);
+
+    console.log("SE-Interpreter(0.1.6-alpha)".yellow);
+    console.log(("Parsing Config-File: "+ path).grey);
+
+    try {
+      data = JSON.parse(subEnvVars(rawData));
+      parseConfigFile(data, testRuns, silencePrints, listenerFactory, exeFactory, listenerOptions);
+    }
+    catch (err) {
+      console.error('ERROR: '+ err);
+    }
   }
+
   if (data.type == 'suite') {
     parseSuiteFile(path, data, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions);
   }
