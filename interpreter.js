@@ -22,6 +22,7 @@ var glob = require('glob');
 var util = require('util');
 var pathLib = require('path');
 var fs = require('fs');
+var colors = require('colors');
 
 // Common functionality for assert/verify/waitFor/store step types. Only the code for actually
 // getting the value has to be implemented individually.
@@ -30,7 +31,7 @@ var prefixes = {
     getter.run(testRun, function(info) {
       if (info.error) { callback(info); return; }
       var match = getter.cmp ? info.value == testRun.p(getter.cmp) : info.value;
-      
+
       if (testRun.currentStep().negated) {
         if (match) {
           callback({ 'success': false, 'error': new Error(getter.cmp ? getter.cmp + ' matches' : getter.name + ' is true') });
@@ -73,9 +74,9 @@ var prefixes = {
             callback({ 'success': false, 'error': info.error || new Error('Wait timed out.') });
           }
         }
-      }); 
+      });
     }
-    
+
     setTimeout(test, 500);
   }
 };
@@ -186,10 +187,10 @@ TestRun.prototype.next = function(callback) {
 
 TestRun.prototype.end = function(callback) {
   callback = callback || function() {};
+  var testRun = this;
   if (this.wd) {
     var wd = this.wd;
     this.wd = null;
-    var testRun = this;
     wd.quit(function(error) {
       var info = { 'success': testRun.success && !error, 'error': testRun.lastError || error };
       if (testRun.listener && testRun.listener.endTestRun) {
@@ -248,7 +249,7 @@ TestRun.prototype.run = function(runCallback, stepCallback) {
       }
       runCallback({'success': false, 'error': err });
     });
-  };
+  }
 };
 
 TestRun.prototype.reset = function() {
@@ -266,7 +267,7 @@ TestRun.prototype.setVar = function(k, v) {
 TestRun.prototype.p = function(name) {
   var s = this.currentStep();
   if (!(name in s)) {
-    throw new Error('Missing parameter "' + name + '" in step #' + (this.stepIndex + 1) + '.'); 
+    throw new Error('Missing parameter "' + name + '" in step #' + (this.stepIndex + 1) + '.');
   }
   var v = s[name];
   for (var k in this.vars) {
@@ -290,7 +291,7 @@ TestRun.prototype.do = function(fName, args, callback, successCallback, failureC
     } else {
       callback({'success': false, 'error': new Error('Webdriver has no function "' + fName + '".') });
     }
-    return; 
+    return;
   }
   this.wd[fName].apply(this.wd, args.concat([function(err) {
     if (err) {
@@ -349,33 +350,32 @@ function getInterpreterListener(testRun) {
   return {
     'startTestRun': function(testRun, info) {
       if (info.success) {
-        console.log(testRun.name + ": \x1b[32mStarting test " + testRun.name + "\x1b[30m");
+        console.log(testRun.name + ": Starting test ".green +" ("+ testRun.browserOptions.browserName +") ".yellow + testRun.name );
       } else {
-        console.log(testRun.name + ": \x1b[31mUnable to start test " + testRun.name + ": " + util.inspect(info.error) + "\x1b[30m");
+        console.log(testRun.name + ": Unable to start test ".red + testRun.name + ": " + util.inspect(info.error));
       }
     },
     'endTestRun': function(testRun, info) {
       if (info.success) {
-        console.log(testRun.name + ": \x1b[32m\x1b[1mTest passed\x1b[30m\x1b[0m");
+        console.log(testRun.name + ": Test passed".green);
       } else {
         if (info.error) {
-          console.log(testRun.name + ": \x1b[31m\x1b[1mTest failed: " + util.inspect(info.error) + "\x1b[30m\x1b[0m");
+          console.log(testRun.name + ": Test failed: ".red + util.inspect(info.error));
         } else {
-          console.log(testRun.name + ": \x1b[31m\x1b[1mTest failed\x1b[30m\x1b[0m");
+          console.log(testRun.name + ": Test failed ".red);
         }
       }
     },
     'startStep': function(testRun, step) {
-      console.log(testRun.name + ": " + JSON.stringify(step));
     },
     'endStep': function(testRun, step, info) {
       if (info.success) {
-        console.log(testRun.name + ": \x1b[32mSuccess\x1b[30m");
+        console.log(testRun.name + ": Success ".green + JSON.stringify(step).grey);
       } else {
         if (info.error) {
-          console.log(testRun.name + ": \x1b[31m" + util.inspect(info.error) + "\x1b[30m");
+          console.log(testRun.name + ": Failed ".red + util.inspect(info.error));
         } else {
-          console.log(testRun.name + ": \x1b[33mFailed\x1b[30m");
+          console.log(testRun.name + ": Failed ".red);
         }
       }
     }
@@ -390,9 +390,19 @@ function parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactor
     if (tr) { testRuns.push(tr); }
   }
   if (data.type == 'interpreter-config') {
-    data = JSON.parse(subEnvVars(rawData));
-    parseConfigFile(data, testRuns, silencePrints, listenerFactory, exeFactory, listenerOptions);
+
+    console.log("SE-Interpreter(0.1.6-alpha)".yellow);
+    console.log(("Parsing Config-File: "+ path).grey);
+
+    try {
+      data = JSON.parse(subEnvVars(rawData));
+      parseConfigFile(data, testRuns, silencePrints, listenerFactory, exeFactory, listenerOptions);
+    }
+    catch (err) {
+      console.error('ERROR: '+ err);
+    }
   }
+
   if (data.type == 'suite') {
     parseSuiteFile(path, data, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions);
   }
@@ -402,7 +412,7 @@ function parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactor
 function parseConfigFile(fileContents, testRuns, silencePrints, listenerFactory, exeFactory, listenerOptions) {
   fileContents.configurations.forEach(function(config) {
     var settingsList = config.settings;
-    if (!settingsList || settingsList.length == 0) {
+    if (!settingsList || settingsList.length === 0) {
       settingsList = [{
         'browserOptions': browserOptions,
         'driverOptions': driverOptions
@@ -418,7 +428,7 @@ function parseConfigFile(fileContents, testRuns, silencePrints, listenerFactory,
       });
     });
   });
-};
+}
 
 /** Parses a suite JSON file and adds the resulting TestRuns to testRuns. */
 function parseSuiteFile(path, fileContents, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions) {
@@ -467,7 +477,7 @@ function subEnvVars(t) {
   return t.replace(/\${([^}]+)}/g, function(match, varName) {
     return process.env[varName];
   });
-};
+}
 
 exports.TestRun = TestRun;
 exports.getInterpreterListener = getInterpreterListener;
@@ -495,7 +505,7 @@ var opt = require('optimist')
 // Process arguments.
 var argv = opt.argv;
 
-var numParallelRunners = parseInt(argv.parallel);
+var numParallelRunners = parseInt(argv.parallel, 10);
 
 var browserOptions = { 'browserName': 'firefox' };
 for (var k in argv) {
@@ -576,7 +586,15 @@ function runNext() {
   } else {
     if (index == lastRunFinishedIndex) { // We're the last runner to complete.
       if (!argv.silent) {
-        console.log("\x1b[" + (successes == testRuns.length ? "32" : "31") + "m\x1b[1m" + successes + '/' + testRuns.length + ' tests ran successfully. Exiting.\x1b[30m\x1b[0m');
+
+        var message = successes + '/' + testRuns.length + ' tests ran successfully. Exiting';
+            message = message.red;
+
+        if (successes === testRuns.length) {
+          message = message.green;
+        }
+
+        console.log(message);
       }
       process.on('exit', function() { process.exit(successes == testRuns.length ? 0 : 1); });
     }
