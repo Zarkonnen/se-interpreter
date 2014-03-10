@@ -384,7 +384,7 @@ function getInterpreterListener(testRun) {
 
 function parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions) {
   var rawData = fs.readFileSync(path, "UTF-8");
-  var data = JSON.parse(rawData);
+  var data = JSON.parse(subEnvVars(rawData));
   if (data.type == 'script') {
     var tr = createTestRun(path, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions);
     if (tr) { testRuns.push(tr); }
@@ -455,7 +455,7 @@ function parseSuiteFile(path, fileContents, testRuns, silencePrints, listenerFac
 function createTestRun(path, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions) {
   var script = null;
   try {
-    script = JSON.parse(fs.readFileSync(path, "UTF-8"));
+    script = JSON.parse(subEnvVars(fs.readFileSync(path, "UTF-8")));
   } catch (e) {
     console.error('Unable to load ' + path + ': ' + e);
     return null;
