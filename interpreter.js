@@ -16,6 +16,7 @@
 * limitations under the License.
 */
 
+var interpreter_version = "1.0.5-alpha";
 var webdriver = require('wd');
 var S = require('string');
 var glob = require('glob');
@@ -390,15 +391,12 @@ function parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactor
     if (tr) { testRuns.push(tr); }
   }
   if (data.type == 'interpreter-config') {
-
-    console.log("SE-Interpreter(0.1.6-alpha)".yellow);
+    console.log(("SE-Interpreter " + interpreter_version).yellow);
     console.log(("Parsing Config-File: "+ path).grey);
 
     try {
-      data = JSON.parse(subEnvVars(rawData));
       parseConfigFile(data, testRuns, silencePrints, listenerFactory, exeFactory, listenerOptions);
-    }
-    catch (err) {
+    } catch (err) {
       console.error('ERROR: '+ err);
     }
   }
