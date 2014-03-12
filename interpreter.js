@@ -24,6 +24,7 @@ var util = require('util');
 var pathLib = require('path');
 var fs = require('fs');
 var colors = require('colors');
+var libxml = require('libxmljs');
 
 // Common functionality for assert/verify/waitFor/store step types. Only the code for actually
 // getting the value has to be implemented individually.
@@ -98,8 +99,12 @@ DefaultExecutorFactory.prototype.get = function(stepType) {
 };
 
 /** Encapsulates a single test run. */
-var TestRun = function(script, name) {
+var TestRun = function(script, name, initialVars) {
+  this.initialVars = initialVars || {};
   this.vars = {};
+  for (var k in this.initialVars) {
+    this.vars[k] = this.initialVars[k];
+  }
   this.script = script;
   this.stepIndex = -1;
   this.wd = null;
@@ -256,6 +261,9 @@ TestRun.prototype.run = function(runCallback, stepCallback) {
 TestRun.prototype.reset = function() {
   this.end();
   this.vars = {};
+  for (var k in this.initialVars) {
+    this.vars[k] = this.initialVars[k];
+  }
   this.stepIndex = -1;
   this.success = true;
   this.lastError = null;
@@ -491,6 +499,63 @@ function subEnvVars(t) {
   });
 }
 
+var noneSource = {
+  name: 'none',
+  load: function() {
+    return [{}]; // Return a single empty row.
+  }
+};
+
+var manualSource = {
+  name: 'manual',
+  load: function(cfg) {
+    return [cfg]; // Return config as a row.
+  }
+};
+
+var jsonSource = {
+  name: 'json',
+  load: function(cfg) {
+    var path = pathLib.resolve(cfg.path);
+    var rawData = fs.readFileSync(path, "UTF-8");
+    var data = JSON.parse(subEnvVars(rawData));
+    return data;
+  }
+};
+
+var xmlSource = {
+  name: 'xml',
+  load: function(cfg) {
+    var path = pathLib.resolve(cfg.path);
+    var rawData = fs.readFileSync(path, "UTF-8");
+    var doc = libxml.parseXml(rawData);
+    return doc.find("/testdata/test").map(function(child) {
+      var row = {};
+      child.attrs().forEach(function(attr) {
+        row[attr.name()] = attr.value();
+      });
+      return row;
+    });
+  }
+};
+
+var defaultDataSources = [noneSource, manualSource, jsonSource, xmlSource];
+
+/** Given a data config and a list of data sources, loads the data rows. */
+function loadData(dataConfig, dataSources) {
+  if (dataSources) {
+    var sources = dataSources.filter(function(ds) { return ds.name == dataConfig.source; });
+    if (sources.length > 0) {
+      return sources[0].load(dataConfig.configs[dataConfig.source]);
+    }
+  }
+  var sources = defaultDataSources.filter(function(ds) { return ds.name == dataConfig.source; });
+  if (sources.length == 0) {
+    throw new Error("No data source of name \"" + dataConfig.source + "\" available.");
+  }
+  return sources[0].load(dataConfig.configs[dataConfig.source]);
+}
+
 exports.TestRun = TestRun;
 exports.getInterpreterListener = getInterpreterListener;
 exports.parseJSONFile = parseJSONFile;
@@ -510,6 +575,7 @@ var opt = require('optimist')
   .default('noPrint', false).describe('noPrint', 'no print step output')
   .default('silent', false).describe('silent', 'no non-error output')
   .default('parallel', 1).describe('parallel', 'number of tests to run in parallel')
+  .describe('dataSource', 'path to data source module')
   .describe('listener', 'path to listener module')
   .describe('executorFactory', 'path to factory for extra type executors')
   .demand(1) // At least 1 script to execute.
@@ -538,6 +604,25 @@ for (var k in argv) {
   if (S(k).startsWith('listener-')) {
     listenerOptions[k.substring('listener-'.length)] = argv[k];
   }
+}
+
+var dataSources = [];
+if (argv.dataSource) {
+  var ds = [];
+  if (typeof argv.dataSource == 'string') {
+    ds.push(argv.dataSource);
+  } else {
+    ds = argv.dataSource;
+  }
+  ds.forEach(function(sourceName) {
+    try {
+      var resolved_path = pathLib.resolve(argv.listener);
+      dataSources.push(require(resolved_path));
+    } catch (e) {
+      console.error('Unable to load data source module from: "' + resolved_path + '": ' + e);
+      process.exit(78);
+    }
+  });
 }
 
 var listener = null;
