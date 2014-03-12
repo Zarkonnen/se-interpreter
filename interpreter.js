@@ -351,19 +351,19 @@ function getInterpreterListener(testRun) {
   return {
     'startTestRun': function(testRun, info) {
       if (info.success) {
-        console.log(testRun.name + ": Starting test ".green +" ("+ testRun.browserOptions.browserName +") ".yellow + testRun.name );
+        console.log(testRun.name + ": " + "Starting test ".green +" ("+ testRun.browserOptions.browserName +") ".yellow + testRun.name );
       } else {
-        console.log(testRun.name + ": Unable to start test ".red + testRun.name + ": " + util.inspect(info.error));
+        console.log(testRun.name + ": " + "Unable to start test ".red + testRun.name + ": " + util.inspect(info.error));
       }
     },
     'endTestRun': function(testRun, info) {
       if (info.success) {
-        console.log(testRun.name + ": Test passed".green);
+        console.log(testRun.name + ": " + "Test passed".green);
       } else {
         if (info.error) {
-          console.log(testRun.name + ": Test failed: ".red + util.inspect(info.error));
+          console.log(testRun.name + ": " + "Test failed: ".red + util.inspect(info.error));
         } else {
-          console.log(testRun.name + ": Test failed ".red);
+          console.log(testRun.name + ": " + "Test failed ".red);
         }
       }
     },
@@ -371,12 +371,12 @@ function getInterpreterListener(testRun) {
     },
     'endStep': function(testRun, step, info) {
       if (info.success) {
-        console.log(testRun.name + ": Success ".green + JSON.stringify(step).grey);
+        console.log(testRun.name + ": " + "Success ".green + JSON.stringify(step).grey);
       } else {
         if (info.error) {
-          console.log(testRun.name + ": Failed ".red + util.inspect(info.error));
+          console.log(testRun.name + ": " + "Failed ".red + util.inspect(info.error));
         } else {
-          console.log(testRun.name + ": Failed ".red);
+          console.log(testRun.name + ": " + "Failed ".red);
         }
       }
     }
@@ -590,10 +590,10 @@ function runNext() {
       if (!argv.silent) {
 
         var message = successes + '/' + testRuns.length + ' tests ran successfully. Exiting';
-            message = message.red;
-
-        if (successes === testRuns.length) {
+        if (successes == testRuns.length) {
           message = message.green;
+        } else {
+          message = message.red;
         }
 
         console.log(message);
