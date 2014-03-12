@@ -473,7 +473,7 @@ function createTestRun(path, silencePrints, listenerFactory, exeFactory, browser
 /** Substitutes expressions of the form ${FOO} for environment variables. */
 function subEnvVars(t) {
   return t.replace(/\${([^}]+)}/g, function(match, varName) {
-    return process.env[varName];
+    return process.env[varName] === undefined ? "${" + varName + "}" : process.env[varName];
   });
 }
 
