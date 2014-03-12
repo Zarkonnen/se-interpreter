@@ -81,7 +81,7 @@ Instead of specifying the scripts/suites and configuration on the command-line, 
             },
             {
               "browserOptions": {
-                "browserName": "opera"
+                "browserName": "chrome"
               }
             }
           ],
