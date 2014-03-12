@@ -387,8 +387,7 @@ function parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactor
   var rawData = fs.readFileSync(path, "UTF-8");
   var data = JSON.parse(subEnvVars(rawData));
   if (data.type == 'script') {
-    var tr = createTestRun(path, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions);
-    if (tr) { testRuns.push(tr); }
+    parseScriptFile(path, data, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions);
   }
   if (data.type == 'interpreter-config') {
     console.log(("SE-Interpreter " + interpreter_version).yellow);
@@ -449,7 +448,22 @@ function parseSuiteFile(path, fileContents, testRuns, silencePrints, listenerFac
   });
 }
 
-/** Loads a script JSON file and turns it into a test run. */
+/** Parses script JSON and adds it to the test runs. */
+function parseScriptFile(path, data, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions) {
+  var script = data;
+  var name = path.replace(/.*\/|\\/, "").replace(/\.json$/, '');
+  var tr = new TestRun(script, name);
+  tr.browserOptions = browserOptions || tr.browserOptions;
+  tr.driverOptions = driverOptions || tr.driverOptions;
+  tr.silencePrints = silencePrints;
+  tr.listener = listenerFactory(tr, listenerOptions);
+  if (exeFactory) {
+    tr.executorFactories.splice(0, 0, exeFactory);
+  }
+  testRuns.push(tr);
+}
+
+/** Loads a script JSON file and turns it into a test run. Retained for backwards compatibility. */
 function createTestRun(path, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions) {
   var script = null;
   try {
@@ -483,6 +497,7 @@ exports.parseJSONFile = parseJSONFile;
 exports.parseConfigFile = parseConfigFile;
 exports.parseSuiteFile = parseSuiteFile;
 exports.createTestRun = createTestRun;
+exports.parseScriptFile = parseScriptFile;
 exports.subEnvVars = subEnvVars;
 
 // Command-line usage.
