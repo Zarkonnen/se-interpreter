@@ -396,19 +396,12 @@ function parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactor
   var data = JSON.parse(subEnvVars(rawData));
   if (data.type == 'script') {
     parseScriptFile(path, data, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions, dataSources);
-  }
-  if (data.type == 'interpreter-config') {
-    console.log(("Parsing Config-File: "+ path).grey);
-
-    try {
-      parseConfigFile(data, testRuns, silencePrints, listenerFactory, exeFactory, listenerOptions, dataSources);
-    } catch (err) {
-      console.error('ERROR: '+ err);
-    }
-  }
-
-  if (data.type == 'suite') {
+  } else if (data.type == 'interpreter-config') {
+    parseConfigFile(data, testRuns, silencePrints, listenerFactory, exeFactory, listenerOptions, dataSources);
+  } else if (data.type == 'suite') {
     parseSuiteFile(path, data, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions, dataSources);
+  } else {
+    throw new Error("No type property set in JSON file \"" + path + "\".")
   }
 }
 
@@ -721,7 +714,9 @@ function runNext() {
       if (!argv.silent) {
 
         var message = successes + '/' + testRuns.length + ' tests ran successfully. Exiting';
-        if (successes == testRuns.length) {
+        if (testRuns.length == 0) {
+          message = 'No tests found. Exiting.'.yellow;
+        } else if (successes == testRuns.length) {
           message = message.green;
         } else {
           message = message.red;
