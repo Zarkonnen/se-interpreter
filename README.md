@@ -57,7 +57,9 @@ You can also specify paths to suites, which will execute all scripts in them.
 * `--silent` Disables all non-fatal-error text output.
 * `--parallel=`_n_ Runs _n_ tests in parallel. The default is no parallel execution.
 * `--driver-`_x_`=`_y_ Passes _y_ as the webdriver parameter _x_. Example: `--driver-host=mywebdriver.mycompany.com`.
-* `--browser-`_x_`=`_y_ Passes _y_ as the browser parameter _x_. Example: `--browser-browserName=opera`.
+* `--browser-`_x_`=`_y_ Passes _y_ as the browser parameter _x_. Example: `--browser-browserName=chrome`.
+
+You can specify multiple `--browser-browserName` arguments, and the tests will be played back on each browser specified.
 
 ## Playing back tests on Sauce OnDemand
 To run your tests on Sauce OnDemand, use the following parameters, with your Sauce username and access key:
@@ -93,7 +95,7 @@ Instead of specifying the scripts/suites and configuration on the command-line, 
       ]
     }
 
-This configuration file runs `printTitle.json` and the two tests in `a_directory/`, on both Firefox and Opera. The format works as follows:
+This configuration file runs `printTitle.json` and the two tests in `a_directory/`, on both Firefox and Chrome. The format works as follows:
 
 * The root object contains two properties: `"type": "interpreter-config"`, and `"configurations"`, which is a list of configurations.
 * Each configuration is an independent set of tests to run. It also contains two properties: `"settings"`, which is a list of settings and `"scripts"`, which is a list of paths for the scripts to execute.
@@ -154,6 +156,9 @@ Using `--listener=`_path-to-listener_, you can specify a module that provides li
 * `endStep`(testRun, step, info)` Called when a step has completed.
 
 The `info` objects have two keys: `success`, which is `true` or `false`, and `error`, which may contain an exception if `success` is false. The `interpreter` module itself contains a listener implementation which is used as the default listener if `--quiet` or `--silent` is not specified.
+
+## Data sources
+You can specify additional data source modules to support custom data-driven testing sources using `--dataSource=`_path-to-datasource_. An example data source module implementation is provided in `examples/example_datasource.js`.
 
 ## Adding extra step types
 There are two ways of adding support for extra step types to se-interpreter.
