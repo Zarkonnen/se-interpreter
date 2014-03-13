@@ -182,4 +182,4 @@ Then, start up a Selenium Server, enter `node` and drive a simple interpreter se
     tr.end();
 
 ## Getting help
-Feel free to [email me](mailto:david.stark@zarkonnen.com) with questions (including "How do I get this to work?), suggestions, and feedback. You can also [report issues on GitHub](https://github.com/Zarkonnen/se-interpreter/issues). For issues with Sauce OnDemand, [contact the Sauce help desk](http://support.saucelabs.com/home).
+Feel free to mail me at david.stark@zarkonnen.com with questions (including "How do I get this to work?), suggestions, and feedback. You can also [report issues on GitHub](https://github.com/Zarkonnen/se-interpreter/issues). For issues with Sauce OnDemand, [contact the Sauce help desk](http://support.saucelabs.com/home).
