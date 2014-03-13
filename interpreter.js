@@ -614,6 +614,19 @@ for (var k in argv) {
     browserOptions[k.substring('browser-'.length)] = argv[k];
   }
 }
+
+var browserOptionsList = [browserOptions];
+if (typeof browserOptions.browserName == 'object') {
+  browserOptionsList = browserOptions.browserName.map(function(bname) {
+    var bo = {};
+    for (var k in browserOptions) {
+      bo[k] = browserOptions[k];
+    }
+    bo.browserName = bname;
+    return bo;
+  });
+}
+
 var driverOptions = {};
 for (var k in argv) {
   if (S(k).startsWith('driver-')) {
@@ -684,18 +697,20 @@ var testRuns = [];
 
 console.log(("SE-Interpreter " + interpreter_version));
 
-argv._.forEach(function(pathToGlob) {
-  glob.sync(pathToGlob).forEach(function(path) {
-    if (S(path).endsWith('.json')) {
-      var name = path.replace(/.*\/|\\/, "").replace(/\.json$/, "");
-      var silencePrints = argv.noPrint || argv.silent;
-      try {
-        parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions, dataSources);
-      } catch (e) {
-        console.error('Unable to load ' + path + ': ' + e);
-        process.exit(65);
+browserOptionsList.forEach(function(browserOptions) {
+  argv._.forEach(function(pathToGlob) {
+    glob.sync(pathToGlob).forEach(function(path) {
+      if (S(path).endsWith('.json')) {
+        var name = path.replace(/.*\/|\\/, "").replace(/\.json$/, "");
+        var silencePrints = argv.noPrint || argv.silent;
+        try {
+          parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions, dataSources);
+        } catch (e) {
+          console.error('Unable to load ' + path + ': ' + e);
+          process.exit(65);
+        }
       }
-    }
+    });
   });
 });
 
