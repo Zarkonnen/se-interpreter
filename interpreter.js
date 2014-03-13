@@ -391,30 +391,29 @@ function getInterpreterListener(testRun) {
   };
 }
 
-function parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions) {
+function parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions, dataSources) {
   var rawData = fs.readFileSync(path, "UTF-8");
   var data = JSON.parse(subEnvVars(rawData));
   if (data.type == 'script') {
-    parseScriptFile(path, data, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions);
+    parseScriptFile(path, data, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions, dataSources);
   }
   if (data.type == 'interpreter-config') {
-    console.log(("SE-Interpreter " + interpreter_version).yellow);
     console.log(("Parsing Config-File: "+ path).grey);
 
     try {
-      parseConfigFile(data, testRuns, silencePrints, listenerFactory, exeFactory, listenerOptions);
+      parseConfigFile(data, testRuns, silencePrints, listenerFactory, exeFactory, listenerOptions, dataSources);
     } catch (err) {
       console.error('ERROR: '+ err);
     }
   }
 
   if (data.type == 'suite') {
-    parseSuiteFile(path, data, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions);
+    parseSuiteFile(path, data, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions, dataSources);
   }
 }
 
 /** Parses a config JSON file and adds the resulting TestRuns to testRuns. */
-function parseConfigFile(fileContents, testRuns, silencePrints, listenerFactory, exeFactory, listenerOptions) {
+function parseConfigFile(fileContents, testRuns, silencePrints, listenerFactory, exeFactory, listenerOptions, dataSources) {
   fileContents.configurations.forEach(function(config) {
     var settingsList = config.settings;
     if (!settingsList || settingsList.length === 0) {
@@ -427,7 +426,7 @@ function parseConfigFile(fileContents, testRuns, silencePrints, listenerFactory,
       config.scripts.forEach(function(pathToGlob) {
         glob.sync(pathToGlob).forEach(function(path) {
           if (S(path).endsWith('.json')) {
-            parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, settings.browserOptions, settings.driverOptions, listenerOptions);
+            parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, settings.browserOptions, settings.driverOptions, listenerOptions, dataSources);
           }
         });
       });
@@ -436,7 +435,7 @@ function parseConfigFile(fileContents, testRuns, silencePrints, listenerFactory,
 }
 
 /** Parses a suite JSON file and adds the resulting TestRuns to testRuns. */
-function parseSuiteFile(path, fileContents, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions) {
+function parseSuiteFile(path, fileContents, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions, dataSources) {
   fileContents.scripts.forEach(function(scriptLocation) {
     if (scriptLocation.where != "local") {
       console.error('Suite members stored using ' + scriptLocation.where + ' are not supported.');
@@ -445,30 +444,42 @@ function parseSuiteFile(path, fileContents, testRuns, silencePrints, listenerFac
     var relPath = pathLib.join(path, '..', scriptLocation.path);
     var tr = null;
     if (fs.existsSync(relPath)) {
-      tr = createTestRun(relPath, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions);
-    }
-    if (tr) {
-      testRuns.push(tr);
+      parseScriptFile(relPath, null, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions, dataSources);
     } else {
-      tr = createTestRun(scriptLocation.path, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions);
-      if (tr) { testRuns.push(tr); }
+      parseScriptFile(scriptLocation.path, null, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions, dataSources);
     }
   });
 }
 
-/** Parses script JSON and adds it to the test runs. */
-function parseScriptFile(path, data, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions) {
+/** Parses script JSON and adds the resulting runs to the testRuns list. */
+function parseScriptFile(path, data, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions, dataSources) {
+  if (!data) {
+    var rawData = fs.readFileSync(path, "UTF-8");
+    data = JSON.parse(subEnvVars(rawData));
+  }
   var script = data;
   var name = path.replace(/.*\/|\\/, "").replace(/\.json$/, '');
-  var tr = new TestRun(script, name);
-  tr.browserOptions = browserOptions || tr.browserOptions;
-  tr.driverOptions = driverOptions || tr.driverOptions;
-  tr.silencePrints = silencePrints;
-  tr.listener = listenerFactory(tr, listenerOptions);
-  if (exeFactory) {
-    tr.executorFactories.splice(0, 0, exeFactory);
+  var dataRows = [{}];
+  if (script.data) {
+    dataRows = loadData(script.data, dataSources, path);
   }
-  testRuns.push(tr);
+  var rowName = 1;
+  dataRows.forEach(function(row) {
+    var runName = name;
+    if (dataRows.length > 1) {
+      runName += ", row " + rowName;
+      rowName++;
+    }
+    var tr = new TestRun(script, runName, row);
+    tr.browserOptions = browserOptions || tr.browserOptions;
+    tr.driverOptions = driverOptions || tr.driverOptions;
+    tr.silencePrints = silencePrints;
+    tr.listener = listenerFactory(tr, listenerOptions);
+    if (exeFactory) {
+      tr.executorFactories.splice(0, 0, exeFactory);
+    }
+    testRuns.push(tr);
+  });
 }
 
 /** Loads a script JSON file and turns it into a test run. Retained for backwards compatibility. */
@@ -515,8 +526,14 @@ var manualSource = {
 
 var jsonSource = {
   name: 'json',
-  load: function(cfg) {
+  load: function(cfg, scriptPath) {
     var path = pathLib.resolve(cfg.path);
+    if (scriptPath) {
+      var relPath = pathLib.join(scriptPath, '..', cfg.path);
+      if (fs.existsSync(relPath)) {
+        path = relPath;
+      }
+    }
     var rawData = fs.readFileSync(path, "UTF-8");
     var data = JSON.parse(subEnvVars(rawData));
     return data;
@@ -525,14 +542,20 @@ var jsonSource = {
 
 var xmlSource = {
   name: 'xml',
-  load: function(cfg) {
+  load: function(cfg, scriptPath) {
     var path = pathLib.resolve(cfg.path);
+    if (scriptPath) {
+      var relPath = pathLib.join(scriptPath, '..', cfg.path);
+      if (fs.existsSync(relPath)) {
+        path = relPath;
+      }
+    }
     var rawData = fs.readFileSync(path, "UTF-8");
     var doc = libxml.parseXml(rawData);
     return doc.find("/testdata/test").map(function(child) {
       var row = {};
       child.attrs().forEach(function(attr) {
-        row[attr.name()] = attr.value();
+        row[subEnvVars(attr.name())] = subEnvVars(attr.value());
       });
       return row;
     });
@@ -541,19 +564,24 @@ var xmlSource = {
 
 var defaultDataSources = [noneSource, manualSource, jsonSource, xmlSource];
 
-/** Given a data config and a list of data sources, loads the data rows. */
-function loadData(dataConfig, dataSources) {
+/**
+ * Given a data config and a list of data sources, loads the data rows.
+ * @param dataConfig A config of the form {"source": "sourcename", "configs": {"sourcename": {cfg-data}}}
+ * @param dataSources An optional list of additional data sources.
+ * @param scriptPath Optionally, the path of the script we're loading data for, for use in relative paths.
+ */
+function loadData(dataConfig, dataSources, scriptPath) {
   if (dataSources) {
     var sources = dataSources.filter(function(ds) { return ds.name == dataConfig.source; });
     if (sources.length > 0) {
-      return sources[0].load(dataConfig.configs[dataConfig.source]);
+      return sources[0].load(dataConfig.configs[dataConfig.source], scriptPath);
     }
   }
   var sources = defaultDataSources.filter(function(ds) { return ds.name == dataConfig.source; });
   if (sources.length == 0) {
     throw new Error("No data source of name \"" + dataConfig.source + "\" available.");
   }
-  return sources[0].load(dataConfig.configs[dataConfig.source]);
+  return sources[0].load(dataConfig.configs[dataConfig.source], scriptPath);
 }
 
 exports.TestRun = TestRun;
@@ -564,6 +592,7 @@ exports.parseSuiteFile = parseSuiteFile;
 exports.createTestRun = createTestRun;
 exports.parseScriptFile = parseScriptFile;
 exports.subEnvVars = subEnvVars;
+exports.loadData = loadData;
 
 // Command-line usage.
 if (require.main !== module) {
@@ -616,7 +645,7 @@ if (argv.dataSource) {
   }
   ds.forEach(function(sourceName) {
     try {
-      var resolved_path = pathLib.resolve(argv.listener);
+      var resolved_path = pathLib.resolve(sourceName);
       dataSources.push(require(resolved_path));
     } catch (e) {
       console.error('Unable to load data source module from: "' + resolved_path + '": ' + e);
@@ -660,13 +689,15 @@ if (argv.executorFactory) {
 
 var testRuns = [];
 
+console.log(("SE-Interpreter " + interpreter_version));
+
 argv._.forEach(function(pathToGlob) {
   glob.sync(pathToGlob).forEach(function(path) {
     if (S(path).endsWith('.json')) {
       var name = path.replace(/.*\/|\\/, "").replace(/\.json$/, "");
       var silencePrints = argv.noPrint || argv.silent;
       try {
-        parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions);
+        parseJSONFile(path, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions, dataSources);
       } catch (e) {
         console.error('Unable to load ' + path + ': ' + e);
         process.exit(65);
