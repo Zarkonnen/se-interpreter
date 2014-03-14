@@ -359,7 +359,7 @@ function getInterpreterListener(testRun) {
   return {
     'startTestRun': function(testRun, info) {
       if (info.success) {
-        console.log(testRun.name + ": " + "Starting test ".green +" ("+ testRun.browserOptions.browserName +") ".yellow + testRun.name );
+        console.log(testRun.name + ": " + "Starting test ".green +("("+ testRun.browserOptions.browserName +") ").yellow + testRun.name );
       } else {
         console.log(testRun.name + ": " + "Unable to start test ".red + testRun.name + ": " + util.inspect(info.error));
       }
