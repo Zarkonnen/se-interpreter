@@ -58,9 +58,11 @@ var prefixes = {
   'verify': function(getter, testRun, callback) {
     getter.run(testRun, function(info) {
       if (info.error) { callback(info); return; }
-      callback({ 'success': !!((getter.cmp ?
-                                info.value == testRun.p(getter.cmp) :
-                                info.value) ^ testRun.currentStep().negated) });
+      var success = !!((getter.cmp ?
+                      info.value == testRun.p(getter.cmp) : info.value)
+                      ^ testRun.currentStep().negated);
+
+      callback({ 'success': success});
     });
   },
   'store': function(getter, testRun, callback) {
