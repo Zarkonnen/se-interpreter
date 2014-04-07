@@ -36,7 +36,10 @@ var prefixes = {
 
       if (testRun.currentStep().negated) {
         if (match) {
-          callback({ 'success': false, 'error': new Error(getter.cmp ? getter.cmp + ' matches' : getter.name + ' is true') });
+          callback({'success': false,
+                    'error': new Error(getter.cmp ?
+                                       getter.cmp + ' matches' :
+                                       getter.name + ' is true') });
         } else {
           callback({ 'success': true });
         }
@@ -44,7 +47,10 @@ var prefixes = {
         if (match) {
           callback({ 'success': true });
         } else {
-          callback({ 'success': false, 'error': new Error(getter.cmp ? getter.cmp + ' does not match' : getter.name + ' is false') });
+          callback({'success': false,
+                    'error': new Error(getter.cmp ?
+                                       getter.cmp + ' does not match' :
+                                       getter.name + ' is false') });
         }
       }
     });
@@ -52,7 +58,9 @@ var prefixes = {
   'verify': function(getter, testRun, callback) {
     getter.run(testRun, function(info) {
       if (info.error) { callback(info); return; }
-      callback({ 'success': !!((getter.cmp ? info.value == testRun.p(getter.cmp) : info.value) ^ testRun.currentStep().negated) });
+      callback({ 'success': !!((getter.cmp ?
+                                info.value == testRun.p(getter.cmp) :
+                                info.value) ^ testRun.currentStep().negated) });
     });
   },
   'store': function(getter, testRun, callback) {
@@ -67,7 +75,9 @@ var prefixes = {
     var tick = 0;
     function test() {
       getter.run(testRun, function(info) {
-        if (!info.error && !!((getter.cmp ? info.value == testRun.p(getter.cmp) : info.value) ^ testRun.currentStep().negated)) {
+        if (!info.error && !!((getter.cmp ?
+                              info.value == testRun.p(getter.cmp) :
+                              info.value) ^ testRun.currentStep().negated)) {
           callback({ 'success': true });
         } else {
           if (tick++ < ticks) {
