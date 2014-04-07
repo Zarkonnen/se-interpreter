@@ -26,6 +26,10 @@ var fs = require('fs');
 var colors = require('colors');
 var libxml = require('libxmljs');
 
+var str = function str(v) {
+  return "" + v;
+};
+
 // Common functionality for assert/verify/waitFor/store step types. Only the code for actually
 // getting the value has to be implemented individually.
 var prefixes = {
@@ -59,7 +63,7 @@ var prefixes = {
     getter.run(testRun, function(info) {
       if (info.error) { callback(info); return; }
       var success = !!((getter.cmp ?
-                      info.value == testRun.p(getter.cmp) : info.value)
+                      str(info.value) == testRun.p(getter.cmp) : info.value)
                       ^ testRun.currentStep().negated);
 
       callback({ 'success': success});
