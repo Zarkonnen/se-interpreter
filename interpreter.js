@@ -16,7 +16,7 @@
 * limitations under the License.
 */
 
-var interpreter_version = "1.0.5";
+var interpreter_version = "1.0.6";
 var webdriver = require('wd');
 var S = require('string');
 var glob = require('glob');
@@ -125,10 +125,20 @@ TestRun.prototype.start = function(callback) {
   var testRun = this;
   this.wd.init(this.browserOptions, function(err) {
     var info = { 'success': !err, 'error': err };
-    if (testRun.listener && testRun.listener.startTestRun) {
-      testRun.listener.startTestRun(testRun, info);
+    if (err) {
+      if (testRun.listener && testRun.listener.startTestRun) {
+        testRun.listener.startTestRun(testRun, info);
+      }
+      callback(info);
+    } else {
+      testRun.wd.setImplicitWaitTimeout((testRun.script.timeoutSeconds || 60) * 1000, function(err) {
+        var info2 = { 'success': !err, 'error': err };
+        if (testRun.listener && testRun.listener.startTestRun) {
+          testRun.listener.startTestRun(testRun, info2);
+        }
+        callback(info2);
+      });
     }
-    callback(info);
   });
 };
 
