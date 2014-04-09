@@ -167,6 +167,31 @@ First, you can add extra files into the `step_types` directory in the module. Se
 
 Second, you can specify a `--executorFactory=`_path-to-factory_ command line argument. The executor factory is a module that should export a function called `get(stepType)`, returning either an step type implementation/getter, or null if the module can't supply an implementation for playing back a step called `stepType`. See `examples/example_factory.js` for a simple example.
 
+## Using a proxy
+You can specify a proxy for the browser to use by putting a [proxy object](https://code.google.com/p/selenium/wiki/DesiredCapabilities) into the browser settings. Example using a proxy at localhost:
+
+    {
+      "type": "interpreter-config",
+      "configurations": [
+        {
+          "settings": [
+            {
+              "browserOptions": {
+                "browserName": "firefox",
+                "proxy": {
+                  "proxyType": "manual",
+                  "httpProxy": "localhost:8085"
+                }
+              }
+            }
+          ],
+          "scripts": [
+            "examples/tests/get.json"
+          ]
+        }
+      ]
+    }
+
 ## Using se-interpreter as a module
 It's also possible to use se-interpreter as a module in other node code, using `require('se-interpreter')`. To try this out, install se-interpreter locally as a node module:
 
