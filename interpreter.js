@@ -116,30 +116,42 @@ var TestRun = function(script, name, initialVars) {
   this.success = true;
   this.lastError = null;
   this.executorFactories = [new DefaultExecutorFactory()];
+  this.quitDriverAfterUse = true;
+  this.shareStateFromPrevTestRun = false;
 };
 
-TestRun.prototype.start = function(callback) {
+TestRun.prototype.start = function(callback, webDriverToUse) {
   callback = callback || function() {};
-  this.wd = webdriver.remote(this.driverOptions);
   this.browserOptions.name = this.name;
-  var testRun = this;
-  this.wd.init(this.browserOptions, function(err) {
-    var info = { 'success': !err, 'error': err };
-    if (err) {
-      if (testRun.listener && testRun.listener.startTestRun) {
-        testRun.listener.startTestRun(testRun, info);
-      }
-      callback(info);
-    } else {
-      testRun.wd.setImplicitWaitTimeout((testRun.script.timeoutSeconds || 60) * 1000, function(err) {
-        var info2 = { 'success': !err, 'error': err };
-        if (testRun.listener && testRun.listener.startTestRun) {
-          testRun.listener.startTestRun(testRun, info2);
-        }
-        callback(info2);
-      });
+  
+  if (webDriverToUse) {
+    this.wd = webDriverToUse;
+    var info = { 'success': true, 'error': null };
+    if (this.listener && this.listener.startTestRun) {
+      this.listener.startTestRun(this, info);
     }
-  });
+    callback(info);
+  } else {
+    this.wd = webdriver.remote(this.driverOptions);
+    var testRun = this;
+    this.wd.init(this.browserOptions, function(err) {
+      var info = { 'success': !err, 'error': err };
+      if (err) {
+        if (testRun.listener && testRun.listener.startTestRun) {
+          testRun.listener.startTestRun(testRun, info);
+        }
+        callback(info);
+      } else {
+        testRun.wd.setImplicitWaitTimeout((testRun.script.timeoutSeconds || 60) * 1000, function(err) {
+          var info2 = { 'success': !err, 'error': err };
+          if (testRun.listener && testRun.listener.startTestRun) {
+            testRun.listener.startTestRun(testRun, info2);
+          }
+          callback(info2);
+        });
+      }
+    });
+  }
 };
 
 TestRun.prototype.currentStep = function() {
@@ -205,15 +217,23 @@ TestRun.prototype.end = function(callback) {
   callback = callback || function() {};
   var testRun = this;
   if (this.wd) {
-    var wd = this.wd;
-    this.wd = null;
-    wd.quit(function(error) {
-      var info = { 'success': testRun.success && !error, 'error': testRun.lastError || error };
+    if (this.quitDriverAfterUse) {
+      var wd = this.wd;
+      this.wd = null;
+      wd.quit(function(error) {
+        var info = { 'success': testRun.success && !error, 'error': testRun.lastError || error };
+        if (testRun.listener && testRun.listener.endTestRun) {
+          testRun.listener.endTestRun(testRun, info);
+        }
+        callback(info);
+      });
+    } else {
+      var info = { 'success': testRun.success, 'error': testRun.lastError };
       if (testRun.listener && testRun.listener.endTestRun) {
         testRun.listener.endTestRun(testRun, info);
       }
       callback(info);
-    });
+    }
   } else {
     var info = { 'success': false, 'error': new Error('No driver running.') };
     if (this.listener && this.listener.endTestRun) {
@@ -223,10 +243,17 @@ TestRun.prototype.end = function(callback) {
   }
 };
 
-TestRun.prototype.run = function(runCallback, stepCallback) {
+TestRun.prototype.run = function(runCallback, stepCallback, webDriverToUse, defaultVars) {
   var testRun = this;
   runCallback = runCallback || function() {};
   stepCallback = stepCallback || function() {};
+  if (defaultVars) {
+    for (var k in defaultVars) {
+      if (!this.vars[k]) {
+        this.vars[k] = defaultVars[k];
+      }
+    }
+  }
   try {
     this.start(function(info) {
       if (!info.success) {
@@ -255,7 +282,9 @@ TestRun.prototype.run = function(runCallback, stepCallback) {
         });
       }
       runStep();
-    });
+    },
+      webDriverToUse
+    );
   } catch (e) {
     testRun.end(function(endInfo) {
       var err = new Error('Unable to start playback session.');
@@ -439,6 +468,8 @@ function parseConfigFile(fileContents, testRuns, silencePrints, listenerFactory,
 
 /** Parses a suite JSON file and adds the resulting TestRuns to testRuns. */
 function parseSuiteFile(path, fileContents, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions, dataSources) {
+  var shareState = !!fileContents.shareState;
+  var prevTestRunsLength = testRuns.length;
   fileContents.scripts.forEach(function(scriptLocation) {
     if (scriptLocation.where != "local") {
       console.error('Suite members stored using ' + scriptLocation.where + ' are not supported.');
@@ -452,6 +483,15 @@ function parseSuiteFile(path, fileContents, testRuns, silencePrints, listenerFac
       parseScriptFile(scriptLocation.path, null, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions, dataSources);
     }
   });
+  
+  if (shareState && testRuns.length > prevTestRunsLength + 1) {
+    for (var i = prevTestRunsLength; i < testRuns.length - 1; i++) {
+      testRuns[i].quitDriverAfterUse = false;
+    }
+    for (var i = prevTestRunsLength + 1; i < testRuns.length; i++) {
+      testRuns[i].shareStateFromPrevTestRun = true;
+    }
+  }
 }
 
 /** Parses script JSON and adds the resulting runs to the testRuns list. */
@@ -724,6 +764,11 @@ browserOptionsList.forEach(function(browserOptions) {
   });
 });
 
+if (numParallelRunners > 1 && !testRuns.every(function(tr) { return tr.quitDriverAfterUse; })) {
+  console.log("Warning: Parallel test runs are not supported when sharing state within suites.".yellow);
+  numParallelRunners = 1;
+}
+
 var index = -1;
 var successes = 0;
 var lastRunFinishedIndex = testRuns.length + numParallelRunners - 1;
@@ -733,7 +778,10 @@ function runNext() {
     testRuns[index].run(function(info) {
       if (info.success) { successes++; }
       runNext();
-    });
+    },
+    null,
+    testRuns[index].shareStateFromPrevTestRun ? testRuns[index - 1].wd : null,
+    testRuns[index].shareStateFromPrevTestRun ? testRuns[index - 1].vars : null);
   } else {
     if (index == lastRunFinishedIndex) { // We're the last runner to complete.
       if (!argv.silent) {
