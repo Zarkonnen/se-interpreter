@@ -330,7 +330,7 @@ TestRun.prototype.p = function(name) {
  * @param args List of arguments.
  * @param callback stepCallback that's invoked by default.
  * @param successCallback If specified, called on success instead of calling callback.
- * @param failureCallback If specified, called on success instead of calling callback.
+ * @param failureCallback If specified, called on error instead of calling callback.
  */
 TestRun.prototype.do = function(fName, args, callback, successCallback, failureCallback) {
   if (!this.wd[fName]) {
@@ -363,7 +363,7 @@ TestRun.prototype.do = function(fName, args, callback, successCallback, failureC
  * @param locatorName Name of the locator step parameter, usually "locator".
  * @param callback stepCallback that's invoked by default.
  * @param successCallback If specified, called on success instead of calling callback.
- * @param failureCallback If specified, called on success instead of calling callback.
+ * @param failureCallback If specified, called on error instead of calling callback.
  */
 TestRun.prototype.locate = function(locatorName, callback, successCallback, failureCallback) {
   var locator = this.currentStep()[locatorName];
@@ -398,7 +398,7 @@ function getInterpreterListener(testRun) {
   return {
     'startTestRun': function(testRun, info) {
       if (info.success) {
-        console.log(testRun.name + ": " + "Starting test ".green +" ("+ testRun.browserOptions.browserName +") ".yellow + testRun.name );
+        console.log(testRun.name + ": " + "Starting test ".green +("("+ testRun.browserOptions.browserName +") ").yellow + testRun.name );
       } else {
         console.log(testRun.name + ": " + "Unable to start test ".red + testRun.name + ": " + util.inspect(info.error));
       }
