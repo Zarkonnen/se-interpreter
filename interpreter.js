@@ -32,7 +32,7 @@ var prefixes = {
   'assert': function(getter, testRun, callback) {
     getter.run(testRun, function(info) {
       if (info.error) { callback(info); return; }
-      var match = getter.cmp ? info.value == testRun.p(getter.cmp) : info.value;
+      var match = getter.cmp ? ("" + info.value) == testRun.p(getter.cmp) : info.value;
 
       if (testRun.currentStep().negated) {
         if (match) {
@@ -52,13 +52,13 @@ var prefixes = {
   'verify': function(getter, testRun, callback) {
     getter.run(testRun, function(info) {
       if (info.error) { callback(info); return; }
-      callback({ 'success': !!((getter.cmp ? info.value == testRun.p(getter.cmp) : info.value) ^ testRun.currentStep().negated) });
+      callback({ 'success': !!((getter.cmp ? ("" + info.value) == testRun.p(getter.cmp) : info.value) ^ testRun.currentStep().negated) });
     });
   },
   'store': function(getter, testRun, callback) {
     getter.run(testRun, function(info) {
       if (info.error) { callback(info); return; }
-      testRun.setVar(testRun.p('variable'), info.value);
+      testRun.setVar(testRun.p('variable'), "" + info.value);
       callback({ 'success': true });
     });
   },
@@ -67,7 +67,7 @@ var prefixes = {
     var tick = 0;
     function test() {
       getter.run(testRun, function(info) {
-        if (!info.error && !!((getter.cmp ? info.value == testRun.p(getter.cmp) : info.value) ^ testRun.currentStep().negated)) {
+        if (!info.error && !!((getter.cmp ? ("" + info.value) == testRun.p(getter.cmp) : info.value) ^ testRun.currentStep().negated)) {
           callback({ 'success': true });
         } else {
           if (tick++ < ticks) {
