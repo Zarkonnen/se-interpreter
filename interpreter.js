@@ -651,7 +651,7 @@ var opt = require('optimist')
   .describe('listener', 'path to listener module')
   .describe('executorFactory', 'path to factory for extra type executors')
   .demand(1) // At least 1 script to execute.
-  .usage('Usage: $0 [--option value...] [script-path...]\n\nPrefix brower options like browserName with "browser-", e.g. "--browser-browserName=firefox".\nPrefix driver options like host with "driver-", eg --driver-host=webdriver.foo.com.\nPrefix listener module options with "listener-".');
+  .usage('Usage: $0 [--option value...] [script-path...]\n\nPrefix browser options like browserName with "browser-", e.g. "--browser-browserName=firefox".\nPrefix driver options like host with "driver-", eg --driver-host=webdriver.foo.com.\nPrefix listener module options with "listener-".');
 
 // Process arguments.
 var argv = opt.argv;
