@@ -318,10 +318,14 @@ TestRun.prototype.p = function(name) {
     throw new Error('Missing parameter "' + name + '" in step #' + (this.stepIndex + 1) + '.');
   }
   var v = s[name];
+  return this.sub(v);
+};
+
+TestRun.prototype.sub = function(value) {
   for (var k in this.vars) {
-    v = v.replace(new RegExp("\\$\\{" + k + "\\}", "g"), this.vars[k]);
+    value = value.replace(new RegExp("\\$\\{" + k + "\\}", "g"), this.vars[k]);
   }
-  return v;
+  return value;
 };
 
 /**
@@ -377,7 +381,7 @@ TestRun.prototype.locate = function(locatorName, callback, successCallback, fail
     'link text': 'elementByLinkText',
     'css selector': 'elementByCss',
     'xpath': 'elementByXPath'
-  }[locator.type]](locator.value, function(err) {
+  }[locator.type]](this.sub(locator.value), function(err) {
     if (err) {
       if (failureCallback) {
         failureCallback.apply(failureCallback, arguments);
