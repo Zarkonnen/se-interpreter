@@ -145,7 +145,7 @@ To set up a repository to run its Builder tests on Travis, add a `.travis.yml` f
             - SAUCE_USERNAME=<username>
             - secure: <encrypted SAUCE_ACCESS_KEY>
 
-For `my_travis_config.json` use a config file like the second example above. Note that this configuration uses [Travis' support for encrypting environment variables](http://about.travis-ci.org/docs/user/encryption-keys/) to prevent having to put your access key into a publicly visible place.
+For `my_travis_config.json` use a config file like the second example above. If you are setting up a web server on Travis and using Sauce Connect from Travis to Sauce Labs, then your driverOptions host must be 'localhost' and your port must be '4445'. Note that this configuration uses [Travis' support for encrypting environment variables](http://about.travis-ci.org/docs/user/encryption-keys/) to prevent having to put your access key into a publicly visible place.
 
 ## Listeners
 Using `--listener=`_path-to-listener_, you can specify a module that provides listeners that se-interpreter will attach to each script being run. An example listener module implementation is provided in `examples/example_listener.js`. A listener module should export a function called `getInterpreterListener` that returns an object that may define any of the following functions:
