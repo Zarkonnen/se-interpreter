@@ -63,14 +63,14 @@ var prefixes = {
     });
   },
   'waitFor': function(getter, testRun, callback) {
-    var ticks = 60000 / 500;
-    var tick = 0;
+    var start = process.hrtime();
     function test() {
       getter.run(testRun, function(info) {
         if (!info.error && !!((getter.cmp ? ("" + info.value) == testRun.p(getter.cmp) : info.value) ^ testRun.currentStep().negated)) {
           callback({ 'success': true });
         } else {
-          if (tick++ < ticks) {
+          var hr = process.hrtime(start);
+          if (hr[0] + hr[1]*1e-9 < testRun.script.timeoutSeconds) {
             setTimeout(test, 500);
           } else {
             callback({ 'success': false, 'error': info.error || new Error('Wait timed out.') });
