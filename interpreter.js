@@ -421,13 +421,14 @@ function getInterpreterListener(testRun) {
     'startStep': function(testRun, step) {
     },
     'endStep': function(testRun, step, info) {
+      name = step.name ? step.name + " " : "";
       if (info.success) {
-        console.log(testRun.name + ": " + "Success ".green + JSON.stringify(step).grey);
+        console.log(testRun.name + ": " + "Success ".green + name + JSON.stringify(step).grey);
       } else {
         if (info.error) {
-          console.log(testRun.name + ": " + "Failed ".red + util.inspect(info.error));
+          console.log(testRun.name + ": " + "Failed ".red + name + util.inspect(info.error));
         } else {
-          console.log(testRun.name + ": " + "Failed ".red);
+          console.log(testRun.name + ": " + "Failed ".red + name);
         }
       }
     }
