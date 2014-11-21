@@ -323,7 +323,9 @@ TestRun.prototype.p = function(name) {
 
 TestRun.prototype.sub = function(value) {
   for (var k in this.vars) {
-    value = value.replace(new RegExp("\\$\\{" + k + "\\}", "g"), this.vars[k]);
+    if (value.replace) {
+        value = value.replace(new RegExp("\\$\\{" + k + "\\}", "g"), this.vars[k]);
+    }
   }
   return value;
 };
