@@ -16,7 +16,7 @@
 * limitations under the License.
 */
 
-var interpreter_version = "1.0.6";
+var interpreter_version = "1.0.7";
 var webdriver = require('wd');
 var S = require('string');
 var glob = require('glob');
@@ -24,7 +24,7 @@ var util = require('util');
 var pathLib = require('path');
 var fs = require('fs');
 var colors = require('colors');
-var libxml = require('libxmljs');
+var sax = require('sax');
 
 // Common functionality for assert/verify/waitFor/store step types. Only the code for actually
 // getting the value has to be implemented individually.
@@ -599,14 +599,15 @@ var xmlSource = {
       }
     }
     var rawData = fs.readFileSync(path, "UTF-8");
-    var doc = libxml.parseXml(rawData);
-    return doc.find("/testdata/test").map(function(child) {
-      var row = {};
-      child.attrs().forEach(function(attr) {
-        row[subEnvVars(attr.name())] = subEnvVars(attr.value());
-      });
-      return row;
-    });
+    var rows = [];
+    var parser = sax.parser(/*strict*/true);
+    parser.onopentag = function(node) {
+      if (node.name == "test") {
+        rows.push(node.attributes);
+      }
+    };
+    parser.write(rawData).close();
+    return rows;
   }
 };
 
