@@ -431,6 +431,18 @@ function getInterpreterListener(testRun) {
           console.log(testRun.name + ": " + "Failed ".red + name);
         }
       }
+    },
+    'endAllRuns': function(num_runs, successes) {
+      var message = successes + '/' + num_runs + ' tests ran successfully. Exiting';
+      if (num_runs == 0) {
+        message = 'No tests found. Exiting.'.yellow;
+      } else if (successes == num_runs) {
+        message = message.green;
+      } else {
+        message = message.red;
+      }
+
+      console.log(message);
     }
   };
 }
@@ -790,18 +802,9 @@ function runNext() {
     testRuns[index].shareStateFromPrevTestRun ? testRuns[index - 1].vars : null);
   } else {
     if (index == lastRunFinishedIndex) { // We're the last runner to complete.
-      if (!argv.silent) {
-
-        var message = successes + '/' + testRuns.length + ' tests ran successfully. Exiting';
-        if (testRuns.length == 0) {
-          message = 'No tests found. Exiting.'.yellow;
-        } else if (successes == testRuns.length) {
-          message = message.green;
-        } else {
-          message = message.red;
-        }
-
-        console.log(message);
+      var listener = listenerFactory();
+      if (listener) {
+        listener.endAllRuns(testRuns.length, successes);
       }
       process.on('exit', function() { process.exit(successes == testRuns.length ? 0 : 1); });
     }

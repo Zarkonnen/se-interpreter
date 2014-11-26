@@ -22,6 +22,11 @@ exports.getInterpreterListener = function(testRun) {
       console.log("Listener: " + JSON.stringify(step));
       console.log("Listener: success: " + info.success);
       console.log("Listener: error: " + util.inspect(info.error));
+    },
+    'endAllRuns': function(num_runs, successes) {
+      console.log("Listener: all runs ended!");
+      console.log("Listener: number of runs was " + num_runs);
+      console.log("Listener: number of successful runs was " + successes);
     }
   };
 };
