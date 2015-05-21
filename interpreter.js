@@ -635,7 +635,6 @@ var csvSource = {
       }
     }
     
-    var fileStream = fs.createReadStream(path);
     var rawData = fs.readFileSync(path, "UTF-8").toString();
     var csvConverter = new CSVConverter();
 
