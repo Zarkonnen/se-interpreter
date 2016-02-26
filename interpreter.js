@@ -409,12 +409,12 @@ function getInterpreterListener(testRun) {
     },
     'endTestRun': function(testRun, info) {
       if (info.success) {
-        console.log(testRun.name + ": " + "Test passed".green);
+        console.log(testRun.name + ": " + "Test passed".green +("("+ testRun.browserOptions.browserName +") ").yellow);
       } else {
         if (info.error) {
-          console.log(testRun.name + ": " + "Test failed: ".red + util.inspect(info.error));
+          console.log(testRun.name + ": " + "Test failed: ".red +("("+ testRun.browserOptions.browserName +") ").yellow + util.inspect(info.error));
         } else {
-          console.log(testRun.name + ": " + "Test failed ".red);
+          console.log(testRun.name + ": " + "Test failed ".red +("("+ testRun.browserOptions.browserName +") ").yellow);
         }
       }
     },
