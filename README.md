@@ -38,7 +38,7 @@ This should start up an instance of Firefox, navigate to [the Selenium Builder s
 You can specify multiple commands:
 
     se-interpreter examples/tests/get.json examples/tests/assertTitle.json
-    
+
 The second one of these tests is intended to fail.
 
 And you can use glob syntax to specify whole directories:
@@ -153,7 +153,8 @@ Using `--listener=`_path-to-listener_, you can specify a module that provides li
 * `startTestRun(testRun, info)` Called when a test run has started.
 * `endTestRun(testRun, info)` Called when a test has completed.
 * `startStep(testRun, step)` Called when a step is about to start.
-* `endStep`(testRun, step, info)` Called when a step has completed.
+* `endStep(testRun, step, info)` Called when a step has completed.
+* `endAllRuns(num_runs, successes)` Called when all tests have completed.
 
 The `info` objects have two keys: `success`, which is `true` or `false`, and `error`, which may contain an exception if `success` is false. The `interpreter` module itself contains a listener implementation which is used as the default listener if `--quiet` or `--silent` is not specified.
 
