@@ -28,7 +28,7 @@ Listener.prototype.endTestRun = function(testRun, info) {
   } else {
     data = JSON.stringify({'passed': info.success});
   }
-  
+
   var options = {
     'hostname': 'saucelabs.com',
     'port': 443,
@@ -37,13 +37,13 @@ Listener.prototype.endTestRun = function(testRun, info) {
     'auth': this.username + ':' + this.accessKey,
     'headers': { 'Content-Type': 'application/json', 'Content-Length': data.length }
   };
-    
+
   var req = https.request(options);
-  
+
   req.on('error', function(e) {
     console.error(e);
   });
-  
+
   req.write(data);
   req.end();
   if (this.originalListener) { this.originalListener.endTestRun(testRun, info); }
@@ -55,6 +55,10 @@ Listener.prototype.startStep = function(testRun, step) {
 
 Listener.prototype.endStep = function(testRun, step, info) {
   if (this.originalListener) { this.originalListener.endStep(testRun, step, info); }
+};
+
+Listener.prototype.endAllRuns = function(num_runs, successes) {
+  if (this.originalListener) { this.originalListener.endAllRuns(num_runs, successes); }
 };
 
 exports.getInterpreterListener = function(testRun, options, interpreter_module) {
