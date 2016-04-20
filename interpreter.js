@@ -632,17 +632,25 @@ var defaultDataSources = [noneSource, manualSource, jsonSource, xmlSource];
  * @param scriptPath Optionally, the path of the script we're loading data for, for use in relative paths.
  */
 function loadData(dataConfig, dataSources, scriptPath) {
+  var configSource = 'none';
+  if (dataConfig.source && dataConfig.source != 'none') {
+    configSource = dataConfig.source
+  } else if (defaultDataConfig) {
+    configSource = defaultDataConfig
+  }
+
   if (dataSources) {
-    var sources = dataSources.filter(function(ds) { return ds.name == dataConfig.source; });
+    var sources = dataSources.filter(function(ds) { return ds.name == configSource; });
     if (sources.length > 0) {
-      return sources[0].load(dataConfig.configs[dataConfig.source], scriptPath);
+      console.log('Using Data: ' + configSource);
+      return sources[0].load(dataConfig.configs[configSource], scriptPath);
     }
   }
-  var sources = defaultDataSources.filter(function(ds) { return ds.name == dataConfig.source; });
+  var sources = defaultDataSources.filter(function(ds) { return ds.name == configSource; });
   if (sources.length == 0) {
     throw new Error("No data source of name \"" + dataConfig.source + "\" available.");
   }
-  return sources[0].load(dataConfig.configs[dataConfig.source], scriptPath);
+  return sources[0].load(dataConfig.configs[configSource], scriptPath);
 }
 
 exports.TestRun = TestRun;
@@ -665,6 +673,7 @@ var opt = require('optimist')
   .default('noPrint', false).describe('noPrint', 'no print step output')
   .default('silent', false).describe('silent', 'no non-error output')
   .default('parallel', 1).describe('parallel', 'number of tests to run in parallel')
+  .describe('dataConfig', 'the default dataConfig')
   .describe('dataSource', 'path to data source module')
   .describe('listener', 'path to listener module')
   .describe('executorFactory', 'path to factory for extra type executors')
@@ -726,6 +735,10 @@ if (argv.dataSource) {
       process.exit(78);
     }
   });
+}
+
+if (argv.dataConfig) {
+  var defaultDataConfig = argv.dataConfig;
 }
 
 var listener = null;
