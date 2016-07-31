@@ -123,7 +123,6 @@ var TestRun = function(script, name, initialVars) {
 TestRun.prototype.start = function(callback, webDriverToUse) {
   callback = callback || function() {};
   this.browserOptions.name = this.browserOptions.name || this.name;
-  
   if (webDriverToUse) {
     this.wd = webDriverToUse;
     var info = { 'success': true, 'error': null };
@@ -570,7 +569,7 @@ function parseSuiteFile(path, fileContents, testRuns, silencePrints, listenerFac
       parseScriptFile(scriptLocation.path, null, testRuns, silencePrints, listenerFactory, exeFactory, browserOptions, driverOptions, listenerOptions, dataSources);
     }
   });
-  
+
   if (shareState && testRuns.length > prevTestRunsLength + 1) {
     for (var i = prevTestRunsLength; i < testRuns.length - 1; i++) {
       testRuns[i].quitDriverAfterUse = false;
@@ -702,17 +701,25 @@ var defaultDataSources = [noneSource, manualSource, jsonSource, xmlSource];
  * @param scriptPath Optionally, the path of the script we're loading data for, for use in relative paths.
  */
 function loadData(dataConfig, dataSources, scriptPath) {
+  var configSource = 'none';
+  if (dataConfig.source && dataConfig.source != 'none') {
+    configSource = dataConfig.source
+  } else if (defaultDataConfig) {
+    configSource = defaultDataConfig
+  }
+
   if (dataSources) {
-    var sources = dataSources.filter(function(ds) { return ds.name == dataConfig.source; });
+    var sources = dataSources.filter(function(ds) { return ds.name == configSource; });
     if (sources.length > 0) {
-      return sources[0].load(dataConfig.configs[dataConfig.source], scriptPath);
+      console.log('Using Data: ' + configSource);
+      return sources[0].load(dataConfig.configs[configSource], scriptPath);
     }
   }
-  var sources = defaultDataSources.filter(function(ds) { return ds.name == dataConfig.source; });
+  var sources = defaultDataSources.filter(function(ds) { return ds.name == configSource; });
   if (sources.length == 0) {
     throw new Error("No data source of name \"" + dataConfig.source + "\" available.");
   }
-  return sources[0].load(dataConfig.configs[dataConfig.source], scriptPath);
+  return sources[0].load(dataConfig.configs[configSource], scriptPath);
 }
 
 exports.TestRun = TestRun;
@@ -735,6 +742,7 @@ var opt = require('optimist')
   .default('noPrint', false).describe('noPrint', 'no print step output')
   .default('silent', false).describe('silent', 'no non-error output')
   .default('parallel', 1).describe('parallel', 'number of tests to run in parallel')
+  .describe('dataConfig', 'the default dataConfig')
   .describe('dataSource', 'path to data source module')
   .describe('listener', 'path to listener module')
   .describe('executorFactory', 'path to factory for extra type executors')
@@ -796,6 +804,10 @@ if (argv.dataSource) {
       process.exit(78);
     }
   });
+}
+
+if (argv.dataConfig) {
+  var defaultDataConfig = argv.dataConfig;
 }
 
 var listener = null;
@@ -872,7 +884,7 @@ function runNext() {
     testRuns[index].shareStateFromPrevTestRun ? testRuns[index - 1].vars : null);
   } else {
     if (index == lastRunFinishedIndex) { // We're the last runner to complete.
-      var listener = listenerFactory();
+      var listener = listenerFactory(testRuns[index-1], listenerOptions);
       if (listener) {
         listener.endAllRuns(testRuns.length, successes);
       }
