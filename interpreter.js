@@ -122,7 +122,7 @@ var TestRun = function(script, name, initialVars) {
 
 TestRun.prototype.start = function(callback, webDriverToUse) {
   callback = callback || function() {};
-  this.browserOptions.name = this.name;
+  this.browserOptions.name = this.browserOptions.name || this.name;
   
   if (webDriverToUse) {
     this.wd = webDriverToUse;
