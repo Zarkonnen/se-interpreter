@@ -703,9 +703,9 @@ var defaultDataSources = [noneSource, manualSource, jsonSource, xmlSource];
 function loadData(dataConfig, dataSources, scriptPath) {
   var configSource = 'none';
   if (dataConfig.source && dataConfig.source != 'none') {
-    configSource = dataConfig.source
+    configSource = dataConfig.source;
   } else if (defaultDataConfig) {
-    configSource = defaultDataConfig
+    configSource = defaultDataConfig;
   }
 
   if (dataSources) {
