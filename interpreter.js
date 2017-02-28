@@ -25,6 +25,7 @@ var pathLib = require('path');
 var fs = require('fs');
 var colors = require('colors');
 var sax = require('sax');
+var CSVConverter = require('csvtojson').core.Converter;
 
 // Common functionality for assert/verify/waitFor/store step types. Only the code for actually
 // getting the value has to be implemented individually.
@@ -692,7 +693,37 @@ var xmlSource = {
   }
 };
 
-var defaultDataSources = [noneSource, manualSource, jsonSource, xmlSource];
+var csvSource = {
+  name: 'csv',
+  load: function(cfg, scriptPath) {
+    var path = pathLib.resolve(cfg.path);
+    if (scriptPath) {
+      var relPath = pathLib.join(scriptPath, '..', cfg.path);
+      if (fs.existsSync(relPath)) {
+        path = relPath;
+      }
+    }
+    
+    var rawData = fs.readFileSync(path, "UTF-8").toString();
+    var csvConverter = new CSVConverter();
+
+    var parseComplete = false;
+    var rowData = [];
+    csvConverter.on("end_parsed", function(jsonObj) {
+      parseComplete = true;
+      rowData = jsonObj;
+    });
+    csvConverter.fromString(rawData, function(err, jsonObj) {
+      if (err) {
+        console.log("Error processing CSV:" + err);
+      }
+    });
+    require('deasync').loopWhile(function(){return !parseComplete;});
+    return rowData;
+  }
+};
+
+var defaultDataSources = [noneSource, manualSource, jsonSource, xmlSource, csvSource];
 
 /**
  * Given a data config and a list of data sources, loads the data rows.
