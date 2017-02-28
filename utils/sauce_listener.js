@@ -24,9 +24,9 @@ Listener.prototype.startTestRun = function(testRun, info) {
 Listener.prototype.endTestRun = function(testRun, info) {
   var data = null;
   if (info.error) {
-    data = JSON.stringify({'passed': info.success, 'custom-data': {'interpreter-error': util.inspect(info.error)}});
+    data = JSON.stringify({'passed': info.success, 'name': testRun.name, 'custom-data': {'interpreter-error': util.inspect(info.error)}});
   } else {
-    data = JSON.stringify({'passed': info.success});
+    data = JSON.stringify({'passed': info.success, 'name': testRun.name});
   }
 
   var options = {
