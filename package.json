@@ -3,8 +3,8 @@
   "name": "se-interpreter",
   "description": "Command-line interpreter for Selenium Builder test scripts.",
   "tags": ["selenium", "webdriver", "testing"],
-  "version": "1.0.9",
-  "homepage": "http://www.sebuilder.com/",
+  "version": "1.0.10",
+  "homepage": "https://github.com/Zarkonnen/se-interpreter",
   "repository": {
     "type": "git",
     "url": "https://github.com/Zarkonnen/se-interpreter.git"
