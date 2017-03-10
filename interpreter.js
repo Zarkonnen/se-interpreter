@@ -390,7 +390,9 @@ var keysMap = {
 
 TestRun.prototype.sub = function(value) {
   for (var k in this.vars) {
-    value = value.replace(new RegExp("\\$\\{" + k + "\\}", "g"), this.vars[k]);
+    if (value.replace) {
+        value = value.replace(new RegExp("\\$\\{" + k + "\\}", "g"), this.vars[k]);
+    }
   }
   for (var k in keysMap) {
     value = value.replace(new RegExp("\\!\\{" + k + "\\}", "g"), keysMap[k]);

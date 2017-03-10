@@ -1,5 +1,5 @@
 exports.run = function(tr, cb) {
   tr.locate('locator', cb, function(err, el) {
-    tr.do('moveTo', [el, null, null], cb);
+    tr.do('moveTo', [el], cb);
   });
 };
