@@ -9,12 +9,19 @@
  * usage: { "type": "windowSize",  "width": 800, "height": 600 }
  */
 
-exports.run = function(tr, cb) {
-  tr.do('windowHandle', [], cb, function (err, handle) {
-    var w = parseInt(tr.p('width'), 10),
-        h = parseInt(tr.p('height'), 10);
-    tr.do('windowSize', [handle, w, h], cb, function(err) {
-      cb({'success': !err, 'error': err});
-    });
-  });
+exports.get = function(stepType) {
+  if (stepType == "windowSize") {
+    return {
+      'run': function(tr, cb) {
+        tr.do('windowHandle', [], cb, function (err, handle) {
+          var w = parseInt(tr.p('width'), 10),
+              h = parseInt(tr.p('height'), 10);
+          tr.do('windowSize', [handle, w, h], cb, function(err) {
+            cb({'success': !err, 'error': err});
+          });
+        });
+      }
+    };
+  }
+  return null;
 };
